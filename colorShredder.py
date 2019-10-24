@@ -1,6 +1,9 @@
 import png
 import random
 import sys
+import concurrent.futures
+import time
+import numpy
 
 USE_AVERAGE = False
 COLOR_BIT_DEPTH = 8
@@ -162,33 +165,66 @@ class Canvas:
                         neighbors.append(neighbor)
         return neighbors
 
+# dispatches workers to generate a list of all Color() objects of a color space in a random order
+
 
 def generateColors():
 
-    # setup
+    # results holds the processes that we need to get a result from
+    results = []
+    # the worker reults are combined into allColors
     allColors = []
+    # the number of integer values for each color channel (256 for 8 bit)
     numberOfChannelValues = 2**COLOR_BIT_DEPTH
-    totalNumber = numberOfChannelValues**3
-    count = 0
+    # the number of chunks to split the color space generation into
+    split = 8
 
-    # loop over every color
-    for r in range(numberOfChannelValues):
-        for g in range(numberOfChannelValues):
-            for b in range(numberOfChannelValues):
-                # add each color
-                allColors.append(Color(r, g, b))
-                count += 1
-        # print completion progress
-        if ((count*100//totalNumber) % 10 == 0):
-            print("Generating All Colors: " +
-                  str(count*100//totalNumber) + "% ...")
+    # Manage Color Genetration
+    print("Generating All Colors: " + str(0) + "% ...", end='\r')
+    start = time.time()
+
+    # Using a ProcessPoolExecutor dispatch workers to generate sections of the color space
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # get the list of workers, giving each a different index
+        results = [executor.submit(
+            generateColors_worker, index, split, numberOfChannelValues) for index in range(split)]
+
+        # for each worker as it finishes, add its result to allColors
+        # allColors is going to be shuffled anyways, so the order the workers finish is irrelevent
+        for red in concurrent.futures.as_completed(results):
+            allColors += red.result()
+            # print completion progress
+            print("Generating All Colors: " + str(len(allColors) *
+                                                  100//numberOfChannelValues**3) + "% ...", end='\r')
+
+    elapsed = time.time() - start
+    print('\n' + "Colors generated in: " + str(elapsed) + " seconds.")
 
     # shuffle the list of colors
     print("Shuffling...")
-    random.shuffle(allColors)
-    print("Shuffling Complete")
+    start = time.time()
+    # 5x speed increase going from random.shuffle() to numpy.random.shuffle()
+    numpy.random.shuffle(allColors)
+    elapsed = time.time() - start
+    print("Shuffling Complete, " + str(len(allColors)) +
+          "colors in " + str(elapsed) + " seconds.")
 
     return(allColors)
+
+
+def generateColors_worker(index, split, numberOfChannelValues):
+    workerResult = []
+
+    # for the size of the red split:
+    for r in range(numberOfChannelValues//split):
+        # for all values of green and blue:
+        for g in range(numberOfChannelValues):
+            for b in range(numberOfChannelValues):
+                    # add each color
+                    # red is determined by the ((index of split * size of split) + index in split)
+                workerResult.append(
+                    Color((index * (numberOfChannelValues//split)) + r, g, b))
+    return workerResult
 
 
 def main():
@@ -208,8 +244,8 @@ def main():
 
     print("Pixels Colored: " + str(count))
     print("Pixels Available: " + str(len(isAvailable)))
-    for available in isAvailable:
-        available.printCoords()
+    # for available in isAvailable:
+    #     available.printCoords()
     print("")
 
     for i in range(10000):
@@ -218,14 +254,14 @@ def main():
         minDistance = sys.maxsize
 
         for available in isAvailable:
-            if not (myCanvas.getColorAt(available).isEqual(Color(0, 0, 0))):
-                print("This pixel shouldn't be available.")
-                print("Pixels Colored: " + str(count))
-                print("Pixels Available: " + str(len(isAvailable)))
-                for available in isAvailable:
-                    available.printCoords()
-                print("")
-                exit(1)
+            # if not (myCanvas.getColorAt(available).isEqual(Color(0, 0, 0))):
+            #     print("This pixel shouldn't be available.")
+            #     print("Pixels Colored: " + str(count))
+            #     print("Pixels Available: " + str(len(isAvailable)))
+            #     for available in isAvailable:
+            #         available.printCoords()
+            #     print("")
+            #     exit(1)
 
             check = myCanvas.considerPixelAt(available, targetColor)
             if (check < minDistance):
@@ -238,18 +274,19 @@ def main():
 
         for neighbor in myCanvas.getValidNeighbors(minCoord):
             if (myCanvas.getColorAt(neighbor).isEqual(Color(0, 0, 0))):
-                # 
+                #
                 # DOESNT WORK
-                # 
+                #
                 if not (neighbor in isAvailable):
                     isAvailable.append(neighbor)
 
         if (i % 100 == 0):
             print("Pixels Colored: " + str(count))
             print("Pixels Available: " + str(len(isAvailable)))
-            for available in isAvailable:
-                available.printCoords()
-            print("")
+            # for available in isAvailable:
+            #     available.printCoords()
+            # print("")
+
             # write the png file
             myFile = open('fuck1.png', 'wb')
             myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
