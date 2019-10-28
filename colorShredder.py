@@ -16,8 +16,8 @@ BLACK = [0, 0, 0]
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
-START_X = 0
-START_Y = 0
+START_X = 32
+START_Y = 32
 
 # globals
 printCount = 0
@@ -96,9 +96,29 @@ def paintCanvas():
     printCurrentCanvas()
 
     # while more uncolored boundry locations exist
+    painter = concurrent.futures.ThreadPoolExecutor()
     while(isAvailable):
         # continue painting
-        paintCanvasWorker()
+        if (len(isAvailable) > 10000):
+            paintCanvasWorker()
+            if (totalColored % 1 == 0):
+                painter.submit(printCurrentCanvas)
+        elif (len(isAvailable) > 1000):
+            paintCanvasWorker()
+            if (totalColored % 10 == 0):
+                painter.submit(printCurrentCanvas)
+        elif (len(isAvailable) > 500):
+            paintCanvasWorker()
+            if (totalColored % 25 == 0):
+                painter.submit(printCurrentCanvas)
+        elif (len(isAvailable) > 250):
+            paintCanvasWorker()
+            if (totalColored % 50 == 0):
+                painter.submit(printCurrentCanvas)
+        else:
+            paintCanvasWorker()
+            if (totalColored % 100 == 0):
+                painter.submit(printCurrentCanvas)
 
 
 def paintCanvasWorker():
@@ -146,9 +166,6 @@ def paintCanvasWorker():
     else:
         allColors.append(targetColor)
         print("[Collision]")
-
-    if (totalColored % 25 == 0):
-        printCurrentCanvas()
 
 
 if __name__ == '__main__':
