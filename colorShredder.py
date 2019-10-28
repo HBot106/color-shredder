@@ -76,6 +76,11 @@ def printCurrentCanvas():
     print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
           ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) + "%", end='\n')
 
+def continuouslyPrintCurrentCanvas(interval):
+    while(isAvailable):
+        printCurrentCanvas()
+        time.sleep(interval)
+
 
 def paintCanvas():
     global totalColored
@@ -95,30 +100,17 @@ def paintCanvas():
     totalColored = 1
     printCurrentCanvas()
 
-    # while more uncolored boundry locations exist
+    # ThreadPoolExecutors for painting the canvas and printing the PNG
     painter = concurrent.futures.ThreadPoolExecutor()
+    printer = concurrent.futures.ThreadPoolExecutor()
+
+    # while more uncolored boundry locations exist
+    printer.submit(continuouslyPrintCurrentCanvas, 0.25)
     while(isAvailable):
         # continue painting
-        if (len(isAvailable) > 10000):
-            paintCanvasWorker()
-            if (totalColored % 1 == 0):
-                painter.submit(printCurrentCanvas)
-        elif (len(isAvailable) > 1000):
-            paintCanvasWorker()
-            if (totalColored % 10 == 0):
-                painter.submit(printCurrentCanvas)
-        elif (len(isAvailable) > 500):
-            paintCanvasWorker()
-            if (totalColored % 25 == 0):
-                painter.submit(printCurrentCanvas)
-        elif (len(isAvailable) > 250):
-            paintCanvasWorker()
-            if (totalColored % 50 == 0):
-                painter.submit(printCurrentCanvas)
-        else:
-            paintCanvasWorker()
-            if (totalColored % 100 == 0):
-                painter.submit(printCurrentCanvas)
+        paintCanvasWorker()
+
+    printer.shutdown()
 
 
 def paintCanvasWorker():
