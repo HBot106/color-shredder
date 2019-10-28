@@ -13,19 +13,23 @@ import canvas
 USE_AVERAGE = False
 BLACK = [0, 0, 0]
 COLOR_BIT_DEPTH = 8
-CANVAS_HEIGHT = 128
-CANVAS_WIDTH = 128
-START_X = 64
-START_Y = 64
+CANVAS_HEIGHT = 64
+CANVAS_WIDTH = 64
+START_X = 32
+START_Y = 32
 
 # globals
+totalColored = 0
+totalColors = 0
 isAvailable = []
 allColors = []
 start = []
-myCanvas = canvas.Canvas(0,0)
+myCanvas = canvas.Canvas(0, 0)
 
 
 def main():
+    global totalColored
+    global totalColors
     global isAvailable
     global allColors
     global start
@@ -34,6 +38,7 @@ def main():
     # Setup
     isAvailable = []
     allColors = colorTools.generateColors(COLOR_BIT_DEPTH)
+    totalColors = len(allColors)
     start = [START_X, START_Y]
     myCanvas = canvas.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT)
 
@@ -45,34 +50,47 @@ def main():
 
     # Final Print
     printCurrentCanvas()
-    print("Painting Completed in " + "{:3.2f}".format(elapsedTime / 60) + " minutes!")
-    
+    print("Painting Completed in " +
+          "{:3.2f}".format(elapsedTime / 60) + " minutes!")
 
 
 def printCurrentCanvas():
+    global totalColored
+    global totalColors
+    global isAvailable
+    global allColors
+    global start
     global myCanvas
 
     # write the png file
-    myFile = open('fuck1.png', 'wb')
+    myFile = open('fuck0.png', 'wb')
     myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
     myWriter.write(myFile, myCanvas.toRawOutput())
     myFile.close()
 
+    print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
+          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) + "%", end='\n')
+
 
 def paintCanvas():
-    global allColors
-    global myCanvas
-    global start
+    global totalColored
+    global totalColors
     global isAvailable
+    global allColors
+    global start
+    global myCanvas
 
     # draw the first color at the starting pixel
     targetColor = allColors.pop()
     myCanvas.setColorAt(targetColor, start)
-    count = 1
 
     # add its neigbors to isAvailable
     for neighbor in myCanvas.getValidNeighbors(start):
         isAvailable.append(neighbor)
+
+    # finish first pixel
+    totalColored = 1
+    printCurrentCanvas()
 
     # while more uncolored boundry locations exist
     while(isAvailable):
@@ -99,7 +117,7 @@ def paintCanvas():
         # the best position for targetColor has been found; color it,
         # increment the count, and remove that position from isAvailable
         myCanvas.setColorAt(targetColor, minCoord)
-        count += 1
+        totalColored += 1
         isAvailable.remove(minCoord)
 
         # each adjacent position should be added to isAvailable, unless
@@ -109,7 +127,7 @@ def paintCanvas():
                 if not (neighbor in isAvailable):
                     isAvailable.append(neighbor)
 
-        if (count % 100 == 0):
+        if (totalColored % 25 == 0):
             printCurrentCanvas()
 
 

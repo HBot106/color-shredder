@@ -55,7 +55,7 @@ class Canvas:
                             coord[1] - 1 + j]
 
                 # if they are within the canvas add them to the final neigbor list
-                if (0 <= neighbor[0] < self.width) and (0 <= neighbor[1] < self.heigt):
+                if (0 <= neighbor[0] < self.width) and (0 <= neighbor[1] < self.heigt) and (self.canvas[neighbor[0]][neighbor[1]] != BLACK):
                     considerColor = self.canvas[neighbor[0]][neighbor[1]]
                     neighborDifferences.append(
                         colorTools.getColorDifferenceSquared(targetColor, considerColor))
