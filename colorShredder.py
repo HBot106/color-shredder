@@ -16,8 +16,8 @@ BLACK = [0, 0, 0]
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
-START_X = 32
-START_Y = 32
+START_X = 0
+START_Y = 0
 
 # globals
 printCount = 0
@@ -25,7 +25,7 @@ totalColored = 0
 totalColors = 0
 isAvailable = []
 allColors = []
-startCoords= []
+startCoords = []
 workingCanvas = []
 
 
@@ -97,31 +97,43 @@ def paintCanvas():
 
     # while more uncolored boundry locations exist
     while(isAvailable):
+        # continue painting
+        paintCanvasWorker()
 
-        # reset minimums
-        minCoord = [0, 0]
-        minDistance = sys.maxsize
 
-        # get the color to be placed
-        targetColor = allColors.pop()
+def paintCanvasWorker():
+    global totalColored
+    global isAvailable
+    global allColors
+    global workingCanvas
 
-        # for every available position in the boundry, perform the check, keep the best position:
-        for available in isAvailable:
+    # reset minimums
+    minCoord = [0, 0]
+    minDistance = sys.maxsize
 
-            # consider the available location with the target color
-            check = canvasTools.considerPixelAt(
-                workingCanvas, available, targetColor, USE_AVERAGE)
+    # get the color to be placed
+    targetColor = allColors.pop()
 
-            # if it is the best so far save the value and its location
-            if (check < minDistance):
-                minDistance = check
-                minCoord = available
+    # for every available position in the boundry, perform the check, keep the best position:
+    for available in isAvailable:
+
+        # consider the available location with the target color
+        check = canvasTools.considerPixelAt(
+            workingCanvas, available, targetColor, USE_AVERAGE)
+
+        # if it is the best so far save the value and its location
+        if (check < minDistance):
+            minDistance = check
+            minCoord = available
+
+    # double check the the pixel is both available and hasnt been colored yet
+    if (minCoord in isAvailable) and (canvasTools.getColorAt(workingCanvas, minCoord) == BLACK):
 
         # the best position for targetColor has been found; color it,
         # increment the count, and remove that position from isAvailable
         canvasTools.setColorAt(workingCanvas, targetColor, minCoord)
-        totalColored += 1
         isAvailable.remove(minCoord)
+        totalColored += 1
 
         # each adjacent position should be added to isAvailable, unless
         # it is already colored, it is already in the list, or it is outside the canvas
@@ -129,8 +141,14 @@ def paintCanvas():
             if not (neighbor in isAvailable):
                 isAvailable.append(neighbor)
 
-        if (totalColored % 25 == 0):
-            printCurrentCanvas()
+    # we could just discard the pixel in the case of a collision, but for
+    # the sake of completeness we will add it back to the allColors list since it was popped
+    else:
+        allColors.append(targetColor)
+        print("[Collision]")
+
+    if (totalColored % 25 == 0):
+        printCurrentCanvas()
 
 
 if __name__ == '__main__':
