@@ -2,68 +2,55 @@ import png
 import random
 import sys
 
+import concurrent.futures
+import time
+import numpy
+
 import colorTools
 import canvas
 
+# macros
 USE_AVERAGE = False
+BLACK = [0, 0, 0]
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 128
 CANVAS_WIDTH = 128
-START_X = 0
-START_Y = 0
+START_X = 64
+START_Y = 64
+
+# globals
+isAvailable = []
+allColors = []
+start = []
+myCanvas = canvas.Canvas(0,0)
 
 
 def main():
-    # setup
-    allColors = colorTools.generateColors(COLOR_BIT_DEPTH)
-    myCanvas = canvas.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT)
-    start = [START_X, START_Y]
+    global isAvailable
+    global allColors
+    global start
+    global myCanvas
+
+    # Setup
     isAvailable = []
-    count = 0
+    allColors = colorTools.generateColors(COLOR_BIT_DEPTH)
+    start = [START_X, START_Y]
+    myCanvas = canvas.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT)
 
-    # draw the first color at the starting pixel
-    targetColor = allColors.pop()
-    myCanvas.setColorAt(targetColor, start)
-    count += 1
-    for neighbor in myCanvas.getValidNeighbors(start):
-        isAvailable.append(neighbor)
+    # Work
+    print("Painting Canvas...")
+    beginTime = time.time()
+    paintCanvas()
+    elapsedTime = time.time() - beginTime
 
-    print("Pixels Colored: " + str(count))
-    print("Pixels Available: " + str(len(isAvailable)))
-    print("")
+    # Final Print
+    printCurrentCanvas()
+    print("Painting Completed in " + "{:3.2f}".format(elapsedTime / 60) + " minutes!")
+    
 
-    while(isAvailable):
-        minCoord = [0, 0]
-        black = [0, 0, 0]
-        targetColor = allColors.pop()
-        minDistance = sys.maxsize
 
-        for available in isAvailable:
-
-            check = myCanvas.considerPixelAt(
-                available, targetColor, USE_AVERAGE)
-            if (check < minDistance):
-                minDistance = check
-                minCoord = available
-
-        myCanvas.setColorAt(targetColor, minCoord)
-        count += 1
-        isAvailable.remove(minCoord)
-
-        for neighbor in myCanvas.getValidNeighbors(minCoord):
-            if (myCanvas.getColorAt(neighbor) == black):
-                if not (neighbor in isAvailable):
-                    isAvailable.append(neighbor)
-
-        if (count % 100 == 0):
-            print("Pixels Colored: " + str(count))
-            print("Pixels Available: " + str(len(isAvailable)))
-
-            # write the png file
-            myFile = open('fuck1.png', 'wb')
-            myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
-            myWriter.write(myFile, myCanvas.toRawOutput())
-            myFile.close()
+def printCurrentCanvas():
+    global myCanvas
 
     # write the png file
     myFile = open('fuck1.png', 'wb')
@@ -71,9 +58,59 @@ def main():
     myWriter.write(myFile, myCanvas.toRawOutput())
     myFile.close()
 
-    print("Pixels Colored: " + str(count))
-    print("Pixels Available: " + str(len(isAvailable)))
-    print("Finished")
+
+def paintCanvas():
+    global allColors
+    global myCanvas
+    global start
+    global isAvailable
+
+    # draw the first color at the starting pixel
+    targetColor = allColors.pop()
+    myCanvas.setColorAt(targetColor, start)
+    count = 1
+
+    # add its neigbors to isAvailable
+    for neighbor in myCanvas.getValidNeighbors(start):
+        isAvailable.append(neighbor)
+
+    # while more uncolored boundry locations exist
+    while(isAvailable):
+
+        # reset minimums
+        minCoord = [0, 0]
+        minDistance = sys.maxsize
+
+        # get the color to be placed
+        targetColor = allColors.pop()
+
+        # for every available position in the boundry, perform the check, keep the best position:
+        for available in isAvailable:
+
+            # consider the available location with the target color
+            check = myCanvas.considerPixelAt(
+                available, targetColor, USE_AVERAGE)
+
+            # if it is the best so far save the value and its location
+            if (check < minDistance):
+                minDistance = check
+                minCoord = available
+
+        # the best position for targetColor has been found; color it,
+        # increment the count, and remove that position from isAvailable
+        myCanvas.setColorAt(targetColor, minCoord)
+        count += 1
+        isAvailable.remove(minCoord)
+
+        # each adjacent position should be added to isAvailable, unless
+        # it is already colored, it is already in the list, or it is outside the canvas
+        for neighbor in myCanvas.getValidNeighbors(minCoord):
+            if (myCanvas.getColorAt(neighbor) == BLACK):
+                if not (neighbor in isAvailable):
+                    isAvailable.append(neighbor)
+
+        if (count % 100 == 0):
+            printCurrentCanvas()
 
 
 if __name__ == '__main__':

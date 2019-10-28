@@ -44,7 +44,9 @@ def generateColors(COLOR_BIT_DEPTH):
                                                   100//numberOfChannelValues**3) + "% ...", end='\r')
 
     elapsed = time.time() - start
-    print('\n' + "Colors generated in: " + str(elapsed) + " seconds.")
+    print('\n' + str(len(allColors)) +
+          " colors generated in: " + "{:3.2f}".format(elapsed) + " seconds.")
+    print("")
 
     # shuffle the list of colors
     print("Shuffling...")
@@ -52,8 +54,9 @@ def generateColors(COLOR_BIT_DEPTH):
     # 5x speed increase going from random.shuffle() to numpy.random.shuffle()
     numpy.random.shuffle(allColors)
     elapsed = time.time() - start
-    print("Shuffling Complete, " + str(len(allColors)) +
-          "colors in " + str(elapsed) + " seconds.")
+    print(str(len(allColors)) + " colors shuffled in " +
+          "{:3.2f}".format(elapsed) + " seconds.")
+    print("")
 
     return(allColors)
 
