@@ -10,12 +10,12 @@ BLACK = [0, 0, 0]
 # for later writing to a png
 def toRawOutput(canvas):
     rawOutput = []
-    width = len(canvas)
-    height = len(canvas[0])
+    height = len(canvas)
+    width = len(canvas[0])
 
-    for x in range(width):
+    for y in range(width):
         rowOutput = []
-        for y in range(height):
+        for x in range(height):
             rowOutput += getColorAt(canvas, [x, y])
         rawOutput.append(rowOutput)
     return rawOutput

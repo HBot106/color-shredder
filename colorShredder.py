@@ -14,10 +14,10 @@ FILENAME = "painting"
 USE_AVERAGE = True
 BLACK = [0, 0, 0]
 COLOR_BIT_DEPTH = 8
-CANVAS_HEIGHT = 64
-CANVAS_WIDTH = 64
-START_X = 32
-START_Y = 32
+CANVAS_HEIGHT = 32
+CANVAS_WIDTH = 256
+START_X = 0
+START_Y = 16
 
 # globals
 printCount = 0
@@ -65,6 +65,8 @@ def printCurrentCanvas():
     global printCount
     global workingCanvas
 
+    beginTime = time.time()
+
     # write the png file
     name = (FILENAME + '.png')
     myFile = open(name, 'wb')
@@ -73,8 +75,11 @@ def printCurrentCanvas():
     myFile.close()
     printCount += 1
 
+    elapsedTime = time.time() - beginTime
+
     print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
-          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) + "%", end='\n')
+          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) + "%, PNG written in " + "{:3.2f}".format(elapsedTime) + " seconds.", end='\n')
+
 
 def continuouslyPrintCurrentCanvas(interval):
     while(isAvailable):
@@ -105,10 +110,12 @@ def paintCanvas():
     printer = concurrent.futures.ThreadPoolExecutor()
 
     # while more uncolored boundry locations exist
-    printer.submit(continuouslyPrintCurrentCanvas, 0.25)
+    # printer.submit(continuouslyPrintCurrentCanvas, 0.5)
     while(isAvailable):
         # continue painting
         paintCanvasWorker()
+        if (totalColored % 100 == 0):
+            printCurrentCanvas()
 
     printer.shutdown()
 
