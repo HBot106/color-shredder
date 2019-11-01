@@ -12,14 +12,16 @@ import canvasTools
 # macros
 FILENAME = "painting"
 USE_AVERAGE = True
-BLACK = [0, 0, 0]
+# BLACK = [0, 0, 0]
+BLACK = numpy.zeros(3, numpy.int8)
 COLOR_BIT_DEPTH = 8
-CANVAS_HEIGHT = 64
-CANVAS_WIDTH = 64
-START_X = 32
-START_Y = 32
+CANVAS_HEIGHT = 100
+CANVAS_WIDTH = 100
+START_X = 0
+START_Y = 0
 
 # globals
+colorIndex = 0
 printCount = 0
 printTime = time.time()
 collisionCount = 0
@@ -99,7 +101,7 @@ def paintToCanvas(workerOutput):
     workerTargetColor = workerOutput[0]
     workerMinCoord = workerOutput[1]
     # double check the the pixel is both available and hasnt been colored yet
-    if (workerMinCoord in isAvailable) and (canvasTools.getColorAt(workingCanvas, workerMinCoord) == BLACK):
+    if (workerMinCoord in isAvailable) and (canvasTools.getColorAt(workingCanvas, workerMinCoord).all() == BLACK.all()):
 
         # the best position for workerTargetColor has been found; color it,
         # increment the count, and remove that position from isAvailable
@@ -126,13 +128,16 @@ def paintToCanvas(workerOutput):
 
 
 def paintCanvas():
+    global colorIndex
     global isAvailable
     global allColors
     global workingCanvas
     global totalColored
 
     # draw the first color at the starting pixel
-    targetColor = allColors.pop()
+    targetColor = allColors[colorIndex]
+    colorIndex += 1
+
     canvasTools.setColorAt(workingCanvas, targetColor, startCoords)
 
     # add its neigbors to isAvailable
@@ -156,7 +161,8 @@ def paintCanvas():
 
             for _ in range(min(((availableCount//250) + 1, 64))):
                 # get the color to be placed
-                targetColor = allColors.pop()
+                targetColor = allColors[colorIndex]
+                colorIndex += 1
 
                 painters.append(painterManager.submit(
                     getBestPositionForColor, targetColor))
@@ -168,7 +174,8 @@ def paintCanvas():
 
         else:
             # get the color to be placed
-            targetColor = allColors.pop()
+            targetColor = allColors[colorIndex]
+            colorIndex += 1
 
             paintToCanvas(getBestPositionForColor(targetColor))
 
