@@ -10,43 +10,11 @@ BLACK = numpy.zeros(3, numpy.uint8)
 # the format [[r,g,b,r,g,b...],[r,g,b,r,g,b...]...]
 # for later writing to a png
 def toRawOutput(canvas):
-    # rawOutput = []
-    # height = len(canvas)
-    # width = len(canvas[0])
-
-    # for y in range(width):
-    #     rowOutput = []
-    #     for x in range(height):
-    #         rowOutput += getColorAt(canvas, [x, y])
-    #     rawOutput.append(rowOutput)
-    # return rawOutput
-
     return canvas.transpose(1, 0, 2).reshape(-1, canvas[0].size)
 
 
 def constructBlank(width, height):
-    # canvas = []
-
-    # # loop over the whole canvas, adding sub-lists of BLACK color objects to a super-list
-    # for _ in range(width):
-    #     column = []
-    #     for _ in range(height):
-    #         column.append(BLACK)
-    #     canvas.append(column)
-
-    # return canvas
-
     return (numpy.zeros([width, height, 3], numpy.uint8))
-
-
-# set the color at a position in the canvas
-def setColorAt(canvas, color, coord):
-    canvas[coord[0], coord[1]] = color
-
-
-# get the color at a position in the canvas
-def getColorAt(canvas, coord):
-    return canvas[coord[0], coord[1]]
 
 
 def considerPixelAt(canvas, coord, targetColor, useAverage):

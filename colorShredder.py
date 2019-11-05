@@ -101,12 +101,12 @@ def paintToCanvas(workerOutput):
     workerTargetColor = workerOutput[0]
     workerMinCoord = workerOutput[1]
     # double check the the pixel is both available and hasnt been colored yet
-    if (workerMinCoord in isAvailable) and (canvasTools.getColorAt(workingCanvas, workerMinCoord).all() == BLACK.all()):
+    if (workerMinCoord in isAvailable) and (workingCanvas[workerMinCoord[0], workerMinCoord[1]].all() == BLACK.all()):
 
         # the best position for workerTargetColor has been found; color it,
         # increment the count, and remove that position from isAvailable
-        canvasTools.setColorAt(
-            workingCanvas, workerTargetColor, workerMinCoord)
+        workingCanvas[workerMinCoord[0], workerMinCoord[1]] = workerTargetColor
+
         isAvailable.remove(workerMinCoord)
         totalColored += 1
 
@@ -119,7 +119,6 @@ def paintToCanvas(workerOutput):
     # we could just discard the pixel in the case of a collision, but for
     # the sake of completeness we will add it back to the allColors list since it was popped
     else:
-        allColors.append(workerTargetColor)
         collisionCount += 1
         # print("[Collision]")
 
@@ -138,7 +137,7 @@ def paintCanvas():
     targetColor = allColors[colorIndex]
     colorIndex += 1
 
-    canvasTools.setColorAt(workingCanvas, targetColor, startCoords)
+    workingCanvas[startCoords[0], startCoords[1]] = targetColor
 
     # add its neigbors to isAvailable
     for neighbor in canvasTools.getValidNeighbors(workingCanvas, startCoords):
