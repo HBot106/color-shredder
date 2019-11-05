@@ -39,7 +39,7 @@ def considerPixelAt(canvas, coord, targetColor, useAverage):
             if (0 <= neighbor[0] < width) and (0 <= neighbor[1] < height) and not (canvas[neighbor[0], neighbor[1]].all() == BLACK).all():
                 considerColor = canvas[neighbor[0], neighbor[1]]
                 neighborDifferences.append(
-                    colorTools.getColorDifferenceSquared(targetColor, considerColor))
+                    colorTools.getColorDiffSquared(targetColor, considerColor))
 
     if (useAverage):
         output = numpy.average(neighborDifferences)
