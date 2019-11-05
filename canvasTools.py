@@ -2,23 +2,21 @@ import colorTools
 import numpy
 
 # BLACK reference
-# BLACK = [0, 0, 0]
 BLACK = numpy.zeros(3, numpy.uint8)
 
-
-# takes the canvas (2d color list) and converts it to
-# the format [[r,g,b,r,g,b...],[r,g,b,r,g,b...]...]
-# for later writing to a png
+# converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
+    # takes the canvas in the form:
+    # [   [[r,g,b], [r,g,b], [r,g,b]...],
+    #     [[r,g,b], [r,g,b], [r,g,b]...]...]
+    # and converts it to the format:
+    # [   [r,g,b,r,g,b...],
+    #     [r,g,b,r,g,b...]...]
     return canvas.transpose(1, 0, 2).reshape(-1, canvas[0].size)
 
 
-def constructBlank(width, height):
-    return (numpy.zeros([width, height, 3], numpy.uint8))
-
-
 def considerPixelAt(canvas, coord, targetColor, useAverage):
-    neighborDifferences = []
+    neighborDifferences = numpy.zeros(8, numpy.uint8)
     width = canvas.size
     height = canvas[0].size
 

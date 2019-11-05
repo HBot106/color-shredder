@@ -46,13 +46,7 @@ def main():
     allColors = colorTools.generateColors(COLOR_BIT_DEPTH, True)
     totalColors = numpy.size(allColors)
     startCoords = [START_X, START_Y]
-    # Builds a 3D list of the following form:
-    # [ [BLACK, BLACK, BLACK, ...]
-    #   [BLACK, BLACK, BLACK, ...]
-    #   [BLACK, BLACK, BLACK, ...]...]
-    # where  BLACK = [0, 0, 0]
-    workingCanvas = canvasTools.constructBlank(CANVAS_WIDTH, CANVAS_HEIGHT)
-    # therefore workingCanvas[x][y] is a list coresponding to the color of a pixel: [r, g, b]
+    workingCanvas = numpy.zeros([CANVAS_HEIGHT, CANVAS_WIDTH, 3], numpy.uint8)
 
     # Work
     print("Painting Canvas...")
