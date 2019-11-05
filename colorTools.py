@@ -13,8 +13,10 @@ def getColorDifferenceSquared(check_color1, check_color2):
 
 
 # generate all colors of the color space and randomize their order
-def generateColors(COLOR_BIT_DEPTH):
+def generateColors(COLOR_BIT_DEPTH, useMulti):
     beginTime = time.time()
+    print("Generating colors... {:3.2f}".format(
+        0) + '%' + " complete.", end='\r')
 
     # calculate number of values per channel (256 for 8 bit)
     valuesPerChannel = 2**COLOR_BIT_DEPTH
@@ -24,24 +26,49 @@ def generateColors(COLOR_BIT_DEPTH):
     # create zeroed array of propper size
     allColors = numpy.zeros([totalColors, 3], numpy.uint8)
 
-    # using multiprocessing kick off a worker for each red value in range of red values
-    generator = concurrent.futures.ProcessPoolExecutor()
-    constantReds = [generator.submit(
-        generateColors_worker, red, valuesPerChannel) for red in range(valuesPerChannel)]
+    if (useMulti):
+        # using multiprocessing kick off a worker for each red value in range of red values
+        generator = concurrent.futures.ProcessPoolExecutor()
+        constantReds = [generator.submit(
+            generateColors_worker, red, valuesPerChannel) for red in range(valuesPerChannel)]
 
-    # for each worker as it completes, insert its results into the array
-    # the order that this happens does not matter as the array will be shuffled anywasys
-    index = 0
-    for constantRed in concurrent.futures.as_completed(constantReds):
-        allColors[index * (valuesPerChannel**2): (index + 1)
-                  * (valuesPerChannel**2)] = constantRed.result()
+        # for each worker as it completes, insert its results into the array
+        # the order that this happens does not matter as the array will be shuffled anywasys
+        index = 0
+        for constantRed in concurrent.futures.as_completed(constantReds):
+            allColors[index * (valuesPerChannel**2): (index + 1)
+                      * (valuesPerChannel**2)] = constantRed.result()
+            index += 1
+            print("Generating colors... {:3.2f}".format(
+                100*index/valuesPerChannel) + '%' + " complete.", end='\r')
+
+    else:
+        # loop over all r,g,b values
+        for r in range(valuesPerChannel):
+            for g in range(valuesPerChannel):
+                for b in range(valuesPerChannel):
+                    # insert the color in its place
+                    allColors[((r+1) * (g+1) * (b+1)) - 1
+                              ] = numpy.array([r, g, b], numpy.uint8)
+
+            print("Generating colors... {:3.2f}".format(
+                100*r/valuesPerChannel) + '%' + " complete.", end='\r')
 
     # Print Summary
     elapsedTime = time.time() - beginTime
-    print("Generated {} colors in {:3.2f} seconds.".format(totalColors, elapsedTime))
+    print("Generating colors... {:3.2f}".format(
+        100) + '%' + " complete.", end='\n')
+    print("Generated {} colors in {:3.2f} seconds.".format(
+        totalColors, elapsedTime))
 
     # shuffle and return the color list
-    return numpy.random.shuffle(allColors)
+    beginTime = time.time()
+    print("Shuffling colors...", end='\r')
+    numpy.random.shuffle(allColors)
+    elapsedTime = time.time() - beginTime
+    print("Shuffled {} colors in {:3.2f} seconds.".format(
+        totalColors, elapsedTime))
+    return allColors
 
 
 # for a given red value generate every color possible with the remaing green and blue values
@@ -54,7 +81,7 @@ def generateColors_worker(r, valuesPerChannel):
     for g in range(valuesPerChannel):
         for b in range(valuesPerChannel):
             # insert the color in its place
-            workerColors[g * b] = numpy.array([r, g, b], numpy.uint8)
+            workerColors[((g+1) * (b+1)) - 1] = numpy.array([r, g, b], numpy.uint8)
 
     # return all colors with the given red value
     return workerColors

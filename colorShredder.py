@@ -11,7 +11,7 @@ import canvasTools
 
 # macros
 FILENAME = "painting"
-USE_AVERAGE = True
+USE_AVERAGE = False
 # BLACK = [0, 0, 0]
 BLACK = numpy.zeros(3, numpy.int8)
 COLOR_BIT_DEPTH = 8
@@ -26,9 +26,10 @@ printCount = 0
 printTime = time.time()
 collisionCount = 0
 totalColored = 0
-totalColors = 0
+valuesPerChannel = 2**COLOR_BIT_DEPTH
+totalColors = valuesPerChannel**3
 isAvailable = []
-allColors = []
+allColors = numpy.zeros([totalColors, 3], numpy.uint8)
 startCoords = []
 workingCanvas = []
 
@@ -42,8 +43,8 @@ def main():
 
     # Setup
     isAvailable = []
-    allColors = colorTools.generateColors(COLOR_BIT_DEPTH)
-    totalColors = len(allColors)
+    allColors = colorTools.generateColors(COLOR_BIT_DEPTH, True)
+    totalColors = numpy.size(allColors)
     startCoords = [START_X, START_Y]
     # Builds a 3D list of the following form:
     # [ [BLACK, BLACK, BLACK, ...]
