@@ -10,8 +10,16 @@ def getColorDiffSquared(targetColor_A, targetColor_B):
     return numpy.sum(colorDiffSquared)
 
 
+# # get the squared difference to another color
+# def getColorDiffSquared(targetColor_A, targetColor_B):
+#     r = targetColor_A[0] - targetColor_B[0]
+#     g = targetColor_A[1] - targetColor_B[1]
+#     b = targetColor_A[2] - targetColor_B[2]
+#     return ((r*r) + (g*g) + (b*b))
+
+
 # generate all colors of the color space, then shuffle the resulting array
-def generateColors(COLOR_BIT_DEPTH, useMulti):
+def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
     valuesPerChannel = 2**COLOR_BIT_DEPTH
     totalColors = valuesPerChannel**3
     allColors = numpy.zeros([totalColors, 3], numpy.uint8)
@@ -36,13 +44,15 @@ def generateColors(COLOR_BIT_DEPTH, useMulti):
     print("Generated {} colors in {:3.2f} seconds.".format(
         totalColors, elapsedTime))
 
-    # shuffle and return the color list
-    beginTime = time.time()
-    print("Shuffling colors...", end='\r')
-    numpy.random.shuffle(allColors)
-    elapsedTime = time.time() - beginTime
-    print("Shuffled {} colors in {:3.2f} seconds.".format(
-        totalColors, elapsedTime))
+    if (useShuffle):
+        # shuffle and return the color list
+        beginTime = time.time()
+        print("Shuffling colors...", end='\r')
+        numpy.random.shuffle(allColors)
+        elapsedTime = time.time() - beginTime
+        print("Shuffled {} colors in {:3.2f} seconds.".format(
+            totalColors, elapsedTime))
+
     return allColors
 
 
@@ -50,13 +60,14 @@ def generateColors(COLOR_BIT_DEPTH, useMulti):
 def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
     allColors = numpy.zeros([totalColors, 3], numpy.uint8)
 
+    index = 0
     # loop over all r,g,b values
     for r in range(valuesPerChannel):
         for g in range(valuesPerChannel):
             for b in range(valuesPerChannel):
                 # insert the color in its place
-                allColors[((r+1) * (g+1) * (b+1)) - 1
-                          ] = numpy.array([r, g, b], numpy.uint8)
+                allColors[index] = numpy.array([r, g, b], numpy.uint8)
+                index += 1
 
         print("Generating colors... {:3.2f}".format(
             100*r/valuesPerChannel) + '%' + " complete.", end='\r')
@@ -92,12 +103,13 @@ def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 def generateColors_worker(r, valuesPerChannel):
     workerColors = numpy.zeros([valuesPerChannel**2, 3], numpy.uint8)
 
+    index = 0
     # loop over every value of green and blue producing each color that can have the given red value
     for g in range(valuesPerChannel):
         for b in range(valuesPerChannel):
             # insert the color in its place
-            workerColors[((g+1) * (b+1)) -
-                         1] = numpy.array([r, g, b], numpy.uint8)
+            workerColors[index] = numpy.array([r, g, b], numpy.uint8)
+            index += 1
 
     # return all colors with the given red value
     return workerColors
