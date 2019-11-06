@@ -1,55 +1,60 @@
 import png
+import numpy
+
 import random
 import sys
-
 import concurrent.futures
 import time
-import numpy
 
 import colorTools
 import canvasTools
 
-# macros
+# =============================================================================
+# MACROS
+# =============================================================================
 FILENAME = "painting"
 USE_AVERAGE = True
-USE_MULTIPROCESSING = True
 SHUFFLE_COLORS = True
+USE_MULTIPROCESSING = True
 BLACK = numpy.zeros(3, numpy.int8)
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 100
 CANVAS_WIDTH = 100
 START_X = 0
 START_Y = 0
+PRINT_RATE = 100
 INVALID_COORD = numpy.array([-1, -1])
 
-# globals
+# =============================================================================
+# GLOBALS
+# =============================================================================
+
+# position in and the list of all colors to be placed
 colorIndex = 0
-printCount = 0
+allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint8)
+
+# used for ongoing speed calculation
 printTime = time.time()
+
+# tracked for informational printout / progress report
 collisionCount = 0
-totalColored = 0
-valuesPerChannel = 2**COLOR_BIT_DEPTH
-totalColors = valuesPerChannel**3
+ColoredCount = 0
+
+# dictionary used for lookup of available locations
 isAvailable = {}
-allColors = numpy.zeros([totalColors, 3], numpy.uint8)
-startCoords = []
-workingCanvas = []
+
+# holds the current state of the canvas
+workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint8)
+
+# =============================================================================
 
 
 def main():
-    global totalColors
-    global isAvailable
     global allColors
-    global startCoords
-    global workingCanvas
 
     # Setup
-    isAvailable = {}
     allColors = colorTools.generateColors(
         COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
-    totalColors = numpy.size(allColors)
-    startCoords = [START_X, START_Y]
-    workingCanvas = numpy.zeros([CANVAS_HEIGHT, CANVAS_WIDTH, 3], numpy.uint8)
 
     # Work
     print("Painting Canvas...")
@@ -64,9 +69,7 @@ def main():
 
 
 def printCurrentCanvas():
-    global printCount
     global printTime
-    global workingCanvas
 
     beginTime = time.time()
     rate = 100/(beginTime - printTime)
@@ -77,55 +80,55 @@ def printCurrentCanvas():
     myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
     myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
     myFile.close()
-    printCount += 1
 
     printTime = time.time()
-    elapsedTime = printTime - beginTime
 
-    print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
-          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) +
-          "%, PNG written in " + "{:3.2f}".format(elapsedTime) + " seconds, Total Collisions: " +
-          str(collisionCount) + ", Rate: " + "{:3.2f}".format(rate) + " pixels/sec.", end='\n')
+    print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
+        ColoredCount, len(isAvailable), (ColoredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
 
 
-def paintToCanvas(workerOutput):
+def paintToCanvas(workerTargetColor, workerMinCoord):
     global collisionCount
-    global totalColored
+    global ColoredCount
     global isAvailable
     global workingCanvas
 
-    workerTargetColor = workerOutput[0]
-    workerMinCoord = workerOutput[1]
+    workerMinCoordX = workerMinCoord[0]
+    workerMinCoordY = workerMinCoord[1]
 
-    # double check the the pixel is both available and hasnt been colored yet
-    # if the coordinate exists in isAvailable, get() it.
-    # otherwise return WHITE
-    poppedAvailable = isAvailable.pop(workerMinCoord.tostring(), INVALID_COORD)
-    availabilityCheck = not numpy.array_equal(poppedAvailable, INVALID_COORD)
+    # double check the the pixel is available
+    currentlyAvailable = isAvailable.get(
+        workerMinCoord.tostring(), INVALID_COORD)
+    availabilityCheck = not numpy.array_equal(
+        currentlyAvailable, INVALID_COORD)
     if (availabilityCheck):
 
+        # double check the the pixel is BLACK
         isBlack = numpy.array_equal(
-            workingCanvas[poppedAvailable[0], poppedAvailable[1]], BLACK)
+            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], BLACK)
         if (isBlack):
 
-            # the best position for workerTargetColor has been found; color it,
-            # increment the count, and remove that position from isAvailable
-            workingCanvas[workerMinCoord[0],
-                          workerMinCoord[1]] = workerTargetColor
-            totalColored += 1
+            # the best position for workerTargetColor has been found color it
+            workingCanvas[workerMinCoordX, workerMinCoordY] = workerTargetColor
 
-            # each adjacent position should be added to isAvailable, unless
-            # it is already colored, it is already in the list, or it is outside the canvas
-            for neighbor in canvasTools.getValidNeighbors(workingCanvas, workerMinCoord[0], workerMinCoord[1]):
+            # remove that position from isAvailable and increment the count
+            isAvailable.pop(workerMinCoord.tostring())
+            ColoredCount += 1
+
+            # each valid neighbor position should be added to isAvailable
+            for neighbor in canvasTools.getValidNeighbors(workingCanvas, workerMinCoordX, workerMinCoordY):
                 isAvailable.update({neighbor.data.tobytes(): neighbor})
 
-    # we could just discard the pixel in the case of a collision, but for
-    # the sake of completeness we will add it back to the allColors list since it was popped
+        # collision
+        else:
+            collisionCount += 1
+
+    # collision
     else:
         collisionCount += 1
-        # print("[Collision]")
 
-    if (totalColored % 100 == 0):
+    # print progress
+    if (ColoredCount % PRINT_RATE == 0):
         printCurrentCanvas()
 
 
@@ -134,20 +137,20 @@ def paintCanvas():
     global isAvailable
     global allColors
     global workingCanvas
-    global totalColored
+    global ColoredCount
 
     # draw the first color at the starting pixel
     targetColor = allColors[colorIndex]
     colorIndex += 1
 
-    workingCanvas[startCoords[0], startCoords[1]] = targetColor
+    workingCanvas[START_X, START_Y] = targetColor
 
     # add its neigbors to isAvailable
-    for neighbor in canvasTools.getValidNeighbors(workingCanvas, startCoords[0], startCoords[1]):
+    for neighbor in canvasTools.getValidNeighbors(workingCanvas, START_X, START_Y):
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
-    totalColored = 1
+    ColoredCount = 1
     printCurrentCanvas()
 
     printerManager = concurrent.futures.ThreadPoolExecutor()
@@ -170,7 +173,11 @@ def paintCanvas():
                     getBestPositionForColor, targetColor))
 
             for painter in concurrent.futures.as_completed(painters):
-                paintToCanvas(painter.result())
+                workerResult = painter.result()
+                workerTargetColor = workerResult[0]
+                workerMinCoord = workerResult[1]
+
+                paintToCanvas(workerTargetColor, workerMinCoord)
 
             painterManager.shutdown()
 
@@ -179,7 +186,11 @@ def paintCanvas():
             targetColor = allColors[colorIndex]
             colorIndex += 1
 
-            paintToCanvas(getBestPositionForColor(targetColor))
+            bestResult = getBestPositionForColor(targetColor)
+            resultColor = bestResult[0]
+            resultCoord = bestResult[1]
+
+            paintToCanvas(resultColor, resultCoord)
 
     printerManager.shutdown()
 
