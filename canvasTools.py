@@ -5,6 +5,7 @@ import numpy
 
 # BLACK reference
 BLACK = numpy.zeros(3, numpy.uint8)
+WHITE = numpy.array([255,255,255])
 
 
 # converts a canvas into raw data for writing to a png
@@ -22,8 +23,8 @@ def toRawOutput(canvas):
 
 def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     index = 0
-    width = canvas.size
-    height = canvas[0].size
+    width = canvas.shape[0]
+    height = canvas.shape[1]
     neighborDifferences = numpy.zeros(8, numpy.uint64)
 
     # loop over the 3x3 grid surrounding the location being considered
@@ -44,16 +45,16 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
                                   and (0 <= neighborY < height))
             if (neighborIsInCanvas):
 
-                # neighbor must not be BLACK
-                neighborIsBlack = numpy.array_equal(
-                    canvas[neighborX, neighborY], BLACK)
-                if not (neighborIsBlack):
+                # # neighbor must not be BLACK
+                # neighborIsBlack = numpy.array_equal(
+                #     canvas[neighborX, neighborY], WHITE)
+                # if not (neighborIsBlack):
 
-                    # get colDiff between the neighbor and target colors, add it to the list
-                    neigborColor = canvas[neighborX, neighborY]
-                    neighborDifferences[index] = colorTools.getColorDiffSquared(
-                        targetColor, neigborColor)
-                    index += 1
+                # get colDiff between the neighbor and target colors, add it to the list
+                neigborColor = canvas[neighborX, neighborY]
+                neighborDifferences[index] = colorTools.getColorDiffSquared(
+                    targetColor, neigborColor)
+                index += 1
 
     # check if the considered pixel has at least one valid neighbor
     hasValidNeighbor = not numpy.array_equal(
@@ -73,8 +74,8 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
 
 def getValidNeighbors(canvas, coordX, coordY):
     index = 0
-    width = canvas.size
-    height = canvas[0].size
+    width = canvas.shape[0]
+    height = canvas.shape[1]
     neighbors = numpy.zeros([8, 2], numpy.uint8)
 
     # loop over the 3x3 grid surrounding the location being considered
@@ -112,4 +113,4 @@ def getValidNeighbors(canvas, coordX, coordY):
 
     # if it has no valid neighbors, give none
     else:
-        None
+        return numpy.array([])

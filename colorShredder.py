@@ -18,12 +18,13 @@ SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 MAX_PAINTERS = 256
 BLACK = numpy.zeros(3, numpy.int8)
+WHITE = numpy.array([255,255,255])
 COLOR_BIT_DEPTH = 8
-CANVAS_HEIGHT = 32
-CANVAS_WIDTH = 32
-START_X = 0
-START_Y = 0
-PRINT_RATE = 100
+CANVAS_HEIGHT = 64
+CANVAS_WIDTH = 64
+START_X = 32
+START_Y = 32
+PRINT_RATE = 1
 INVALID_COORD = numpy.array([-1, -1])
 
 # =============================================================================
@@ -56,6 +57,7 @@ def main():
     # Setup
     allColors = colorTools.generateColors(
         COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
+    # allColors = colorTools.generateDebugColors()
 
     # Work
     print("Painting Canvas...")
@@ -76,7 +78,7 @@ def paintCanvas():
     startPainting()
 
     # while more uncolored boundry locations exist, continue painting
-    while(isAvailable.keys()):
+    while(isAvailable.keys() and (colorIndex < allColors.shape[0])):
         continuePainting()
 
 
@@ -94,6 +96,7 @@ def startPainting():
 
     # add its neigbors to isAvailable
     for neighbor in canvasTools.getValidNeighbors(workingCanvas, START_X, START_Y):
+        workingCanvas[neighbor[0], neighbor[1]] = WHITE
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
@@ -196,7 +199,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
         # double check the the pixel is BLACK
         isBlack = numpy.array_equal(
-            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], BLACK)
+            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], WHITE)
         if (isBlack):
 
             # the best position for requestedColor has been found color it
@@ -208,6 +211,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
             # each valid neighbor position should be added to isAvailable
             for neighbor in canvasTools.getValidNeighbors(workingCanvas, requestedCoordX, requestedCoordY):
+                workingCanvas[neighbor[0], neighbor[1]] = WHITE
                 isAvailable.update({neighbor.data.tobytes(): neighbor})
 
         # collision
@@ -241,6 +245,8 @@ def printCurrentCanvas():
 
     print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
         ColoredCount, len(isAvailable), (ColoredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
+
+    time.sleep(0.5)
 
 
 if __name__ == '__main__':
