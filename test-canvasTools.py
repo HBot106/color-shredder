@@ -30,6 +30,15 @@ class TestCanvasTools(unittest.TestCase):
 
     # BOOM THIS IS THE PROBLEM!!!!!!!!... i think...
 
+    # it is considering the black pixel in the center, with target color RED
+    # consider pixel should give the average (or min) color diff between the target color and neigboring colors
+    # in this case the target color and neighboring colors are equal, therefore their differences should all be zero
+    # therefore the average (returned val) should be zero 
+
+    # sys.maxsize is returned indicating that the consideration decided there were no valid (in canvas & not black) neigbors
+
+    # TO-DO figure out why considerPixel thinks there are no valid neighbors
+
     def testConsiderPixelAt(self):
         canvas = numpy.array([[RED, RED, RED],
                               [RED, BLACK, RED],
