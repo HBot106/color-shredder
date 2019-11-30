@@ -5,22 +5,14 @@ import numpy
 
 # BLACK reference
 BLACK = numpy.zeros(3, numpy.uint8)
-WHITE = numpy.array([255,255,255])
 
 
 # converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
-    # takes the canvas in the form:
-    # [   [[r,g,b], [r,g,b], [r,g,b]...],
-    #     [[r,g,b], [r,g,b], [r,g,b]...]...]
-    # and converts it to the format:
-    # [   [r,g,b,r,g,b...],
-    #     [r,g,b,r,g,b...]...]
     return canvas.transpose(1, 0, 2).reshape(-1, canvas[0].size)
 
+
 # gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
-
-
 def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     index = 0
     width = canvas.shape[0]
@@ -45,16 +37,16 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
                                   and (0 <= neighborY < height))
             if (neighborIsInCanvas):
 
-                # # neighbor must not be BLACK
-                # neighborIsBlack = numpy.array_equal(
-                #     canvas[neighborX, neighborY], WHITE)
-                # if not (neighborIsBlack):
+                # neighbor must not be BLACK
+                neighborIsBlack = numpy.array_equal(
+                    canvas[neighborX, neighborY], BLACK)
+                if not (neighborIsBlack):
 
-                # get colDiff between the neighbor and target colors, add it to the list
-                neigborColor = canvas[neighborX, neighborY]
-                neighborDifferences[index] = colorTools.getColorDiffSquared(
-                    targetColor, neigborColor)
-                index += 1
+                    # get colDiff between the neighbor and target colors, add it to the list
+                    neigborColor = canvas[neighborX, neighborY]
+                    neighborDifferences[index] = colorTools.getColorDiff(
+                        targetColor, neigborColor)
+                    index += 1
 
     # check if the considered pixel has at least one valid neighbor
     hasValidNeighbor = not numpy.array_equal(

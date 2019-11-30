@@ -18,7 +18,6 @@ SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 MAX_PAINTERS = 256
 BLACK = numpy.zeros(3, numpy.int8)
-WHITE = numpy.array([255,255,255])
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
@@ -57,7 +56,6 @@ def main():
     # Setup
     allColors = colorTools.generateColors(
         COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
-    # allColors = colorTools.generateDebugColors()
 
     # Work
     print("Painting Canvas...")
@@ -77,7 +75,7 @@ def paintCanvas():
     # draw the first color at the starting pixel
     startPainting()
 
-    # while more uncolored boundry locations exist, continue painting
+    # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
     while(isAvailable.keys() and (colorIndex < allColors.shape[0])):
         continuePainting()
 
@@ -96,7 +94,6 @@ def startPainting():
 
     # add its neigbors to isAvailable
     for neighbor in canvasTools.getValidNeighbors(workingCanvas, START_X, START_Y):
-        workingCanvas[neighbor[0], neighbor[1]] = WHITE
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
@@ -142,7 +139,7 @@ def continuePainting():
 
         painterManager.shutdown()
 
-    # otherwise, use only one this process
+    # otherwise, use only this process
     else:
         # get the color to be placed
         targetColor = allColors[colorIndex]
@@ -199,7 +196,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
         # double check the the pixel is BLACK
         isBlack = numpy.array_equal(
-            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], WHITE)
+            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], BLACK)
         if (isBlack):
 
             # the best position for requestedColor has been found color it
@@ -211,7 +208,6 @@ def paintToCanvas(requestedColor, requestedCoord):
 
             # each valid neighbor position should be added to isAvailable
             for neighbor in canvasTools.getValidNeighbors(workingCanvas, requestedCoordX, requestedCoordY):
-                workingCanvas[neighbor[0], neighbor[1]] = WHITE
                 isAvailable.update({neighbor.data.tobytes(): neighbor})
 
         # collision
