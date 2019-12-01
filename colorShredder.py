@@ -1,23 +1,36 @@
 import png
+import numpy
+
 import random
 import sys
-
 import concurrent.futures
 import time
-import numpy
 
 import colorTools
 import canvasTools
 
-# macros
+# =============================================================================
+# MACROS
+# =============================================================================
+
 FILENAME = "painting"
+
 USE_AVERAGE = True
+SHUFFLE_COLORS = True
+USE_MULTIPROCESSING = True
+
+MAX_PAINTERS = 256
+
 BLACK = [0, 0, 0]
+
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
 START_X = 32
 START_Y = 32
+
+PRINT_RATE = 1
+INVALID_COORD = numpy.array([-1, -1])
 
 # globals
 printCount = 0
