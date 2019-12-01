@@ -28,22 +28,60 @@ class TestCanvasTools(unittest.TestCase):
             testInput).all(), testOutput.all())
     # =============================================================================
 
-    # BOOM THIS IS THE PROBLEM!!!!!!!!... i think...
-
-    # it is considering the black pixel in the center, with target color RED
-    # consider pixel should give the average (or min) color diff between the target color and neigboring colors
-    # in this case the target color and neighboring colors are equal, therefore their differences should all be zero
-    # therefore the average (returned val) should be zero 
-
-    # sys.maxsize is returned indicating that the consideration decided there were no valid (in canvas & not black) neigbors
-
-    # TO-DO figure out why considerPixel thinks there are no valid neighbors
-
-    def testConsiderPixelAt(self):
+    def testConsiderPixelAt0(self):
         canvas = numpy.array([[RED, RED, RED],
                               [RED, BLACK, RED],
                               [RED, RED, RED]])
         self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), 0)
+
+    
+    def testConsiderPixelAt1(self):
+        canvas = numpy.array([[RED, RED, RED],
+                              [RED, RED, RED],
+                              [RED, RED, RED]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), 0)
+
+
+    def testConsiderPixelAt2(self):
+        canvas = numpy.array([[BLACK, BLACK, BLACK],
+                              [BLACK, RED, BLACK],
+                              [BLACK, RED, BLACK]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), 0)
+
+
+    def testConsiderPixelAt3(self):
+        canvas = numpy.array([[BLACK, BLACK, BLACK],
+                              [BLACK, RED, BLACK],
+                              [BLACK, BLACK, BLACK]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), sys.maxsize)
+
+
+    def testConsiderPixelAt4(self):
+        canvas = numpy.array([[BLACK, BLACK, BLACK],
+                              [BLACK, RED, BLACK],
+                              [RED, BLACK, BLUE]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), 360//2)
+
+
+    def testConsiderPixelAt5(self):
+        canvas = numpy.array([[BLACK, BLACK, GREEN],
+                              [BLACK, RED, BLACK],
+                              [RED, BLACK, BLUE]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), 720//3)
+
+
+    def testConsiderPixelAt6(self):
+        canvas = numpy.array([[RED, BLUE, RED],
+                              [BLUE, BLACK, BLUE],
+                              [RED, BLUE, RED]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, True), (360*4)//8)
+
+
+    def testConsiderPixelAt7(self):
+        canvas = numpy.array([[RED, BLUE, RED],
+                              [BLUE, BLACK, BLUE],
+                              [RED, BLUE, RED]])
+        self.assertEqual(canvasTools.considerPixelAt(canvas, 1, 1, RED, False), 0)
     # =============================================================================
 
 

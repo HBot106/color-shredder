@@ -17,6 +17,7 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     index = 0
     width = canvas.shape[0]
     height = canvas.shape[1]
+    hasValidNeighbor = False
     neighborDifferences = numpy.zeros(8, numpy.uint64)
 
     # loop over the 3x3 grid surrounding the location being considered
@@ -46,11 +47,12 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
                     neigborColor = canvas[neighborX, neighborY]
                     neighborDifferences[index] = colorTools.getColorDiff(
                         targetColor, neigborColor)
+                    hasValidNeighbor = True
                     index += 1
 
     # check if the considered pixel has at least one valid neighbor
-    hasValidNeighbor = not numpy.array_equal(
-        neighborDifferences, numpy.zeros(8, numpy.uint8))
+    # hasValidNeighbor = not numpy.array_equal(
+    #     neighborDifferences, numpy.zeros(8, numpy.uint8))
     if (hasValidNeighbor):
 
         # either mean or min

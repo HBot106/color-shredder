@@ -12,17 +12,27 @@ import canvasTools
 # =============================================================================
 # MACROS
 # =============================================================================
+
 FILENAME = "painting"
+
 USE_AVERAGE = True
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
+
 MAX_PAINTERS = 256
-BLACK = numpy.zeros(3, numpy.int8)
+
+BLACK = numpy.array([0, 0, 0])
+WHITE = numpy.array([255, 255, 255])
+RED = numpy.array([255, 0, 0])
+GREEN = numpy.array([0, 255, 0])
+BLUE = numpy.array([0, 0, 255])
+
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
 START_X = 32
 START_Y = 32
+
 PRINT_RATE = 1
 INVALID_COORD = numpy.array([-1, -1])
 
@@ -39,7 +49,7 @@ printTime = time.time()
 
 # tracked for informational printout / progress report
 collisionCount = 0
-ColoredCount = 0
+coloredCount = 0
 
 # dictionary used for lookup of available locations
 isAvailable = {}
@@ -85,7 +95,7 @@ def startPainting():
     global colorIndex
     global isAvailable
     global workingCanvas
-    global ColoredCount
+    global coloredCount
 
     # draw the first color at the starting pixel
     targetColor = allColors[colorIndex]
@@ -97,7 +107,7 @@ def startPainting():
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
-    ColoredCount = 1
+    coloredCount = 1
     printCurrentCanvas()
 
 
@@ -106,7 +116,7 @@ def continuePainting():
     global colorIndex
     global isAvailable
     global workingCanvas
-    global ColoredCount
+    global coloredCount
 
     availableCount = len(isAvailable.keys())
 
@@ -180,7 +190,7 @@ def getBestPositionForColor(requestedColor):
 # attempts to paint the requested color at the requested location; checks for collisions
 def paintToCanvas(requestedColor, requestedCoord):
     global collisionCount
-    global ColoredCount
+    global coloredCount
     global isAvailable
     global workingCanvas
 
@@ -204,7 +214,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
             # remove that position from isAvailable and increment the count
             isAvailable.pop(requestedCoord.tostring())
-            ColoredCount += 1
+            coloredCount += 1
 
             # each valid neighbor position should be added to isAvailable
             for neighbor in canvasTools.getValidNeighbors(workingCanvas, requestedCoordX, requestedCoordY):
@@ -219,7 +229,7 @@ def paintToCanvas(requestedColor, requestedCoord):
         collisionCount += 1
 
     # print progress
-    if (ColoredCount % PRINT_RATE == 0):
+    if (coloredCount % PRINT_RATE == 0):
         printCurrentCanvas()
 
 
@@ -240,7 +250,11 @@ def printCurrentCanvas():
     printTime = time.time()
 
     print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-        ColoredCount, len(isAvailable), (ColoredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
+        coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
+
+    
+    for available in isAvailable.values():
+        print(available)
 
     time.sleep(0.5)
 
