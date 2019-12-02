@@ -9,7 +9,26 @@ BLACK = numpy.zeros(3, numpy.uint8)
 
 # converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
-    return canvas.transpose(1, 0, 2).reshape(-1, canvas[0].size)
+    transposedCanvas = numpy.transpose(canvas, (1, 0, 2))
+    flippedColors = numpy.flip(transposedCanvas, 2)
+    rawOutput = numpy.reshape(flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
+    return rawOutput
+
+    # rawOutput = []
+    # height = canvas.shape[0]
+    # width = canvas.shape[1]
+
+    # for y in range(height):
+    #     rowOutput = []
+    #     for x in range(width):
+    #         color = []
+    #         color.append(canvas[x, y][0])
+    #         color.append(canvas[x, y][1])
+    #         color.append(canvas[x, y][2])
+
+    #         rowOutput += color
+    #     rawOutput.append(rowOutput)
+    # return rawOutput
 
 
 # gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
@@ -59,7 +78,7 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
         if (useAverage):
             return numpy.mean(neighborDifferences[0:index])
         else:
-            return numpy.amin(neighborDifferences[0:index])
+            return numpy.min(neighborDifferences[0:index])
 
     # if it has no valid neighbors, maximise its colorDiff
     else:
@@ -71,6 +90,7 @@ def getValidNeighbors(canvas, coordX, coordY):
     width = canvas.shape[0]
     height = canvas.shape[1]
     neighbors = numpy.zeros([8, 2], numpy.uint8)
+    hasValidNeighbor = False
 
     # loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -98,10 +118,9 @@ def getValidNeighbors(canvas, coordX, coordY):
                     # add to the list of valid neighbors
                     neighbors[index] = numpy.array([neighborX, neighborY])
                     index += 1
+                    hasValidNeighbor = True
 
     # check if the considered pixel has at least one valid neighbor
-    hasValidNeighbor = not numpy.array_equal(
-        neighbors, numpy.zeros([8, 2], numpy.uint8))
     if (hasValidNeighbor):
         return neighbors[0:index]
 

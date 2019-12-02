@@ -15,7 +15,7 @@ import canvasTools
 
 FILENAME = "painting"
 
-USE_AVERAGE = True
+USE_AVERAGE = False
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
@@ -252,11 +252,7 @@ def printCurrentCanvas():
     print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
         coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
 
-    
-    for available in isAvailable.values():
-        print(available)
-
-    time.sleep(0.5)
+    # time.sleep(.5)
 
 
 if __name__ == '__main__':
