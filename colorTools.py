@@ -5,14 +5,18 @@ import numpy
 
 # get the squared difference to another color
 def getColorDiff(targetColor_A, targetColor_B):
-    colorDiff = numpy.subtract(targetColor_A, targetColor_B)
-    colorDiffSquared = numpy.multiply(colorDiff, colorDiff)
-    colorDiffSquaredSum = numpy.sum(colorDiffSquared)
-    return numpy.sqrt(colorDiffSquaredSum)
+
+    # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
+    colorDifference = numpy.subtract(targetColor_A, targetColor_B)
+    differenceSquared = numpy.multiply(colorDifference, colorDifference)
+    squaresSum = numpy.sum(differenceSquared)
+    return numpy.sqrt(squaresSum)
 
 
 # generate all colors of the color space, then shuffle the resulting array
 def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
+
+    # Setup, how many colors are needed?
     valuesPerChannel = 2**COLOR_BIT_DEPTH
     totalColors = valuesPerChannel**3
     allColors = numpy.zeros([totalColors, 3], numpy.uint8)
@@ -37,8 +41,8 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
     print("Generated {} colors in {:3.2f} seconds.".format(
         totalColors, elapsedTime))
 
+    # Suffle the color list, so it is in a random order
     if (useShuffle):
-        # shuffle and return the color list
         beginTime = time.time()
         print("Shuffling colors...", end='\r')
         numpy.random.shuffle(allColors)
