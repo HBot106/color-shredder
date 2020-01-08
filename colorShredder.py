@@ -15,7 +15,7 @@ import canvasTools
 
 FILENAME = "painting"
 
-USE_AVERAGE = True
+USE_AVERAGE = False
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
@@ -84,7 +84,6 @@ def printCurrentCanvas():
     beginTime = time.time()
     rate = 100/(beginTime - printTime)
 
-
     # write the png file
     name = (FILENAME + '.png')
     myFile = open(name, 'wb')
@@ -95,12 +94,11 @@ def printCurrentCanvas():
 
     printTime = time.time()
     elapsedTime = printTime - beginTime
-    
 
     print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
-          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) + 
-          "%, PNG written in " + "{:3.2f}".format(elapsedTime) + " seconds, Total Collisions: " + 
-          str(collisionCount) + ", Rate: "  + "{:3.2f}".format(rate) + " pixels/sec." , end='\n')
+          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) +
+          "%, PNG written in " + "{:3.2f}".format(elapsedTime) + " seconds, Total Collisions: " +
+          str(collisionCount) + ", Rate: " + "{:3.2f}".format(rate) + " pixels/sec.", end='\n')
 
 
 def paintToCanvas(workerOutput):
