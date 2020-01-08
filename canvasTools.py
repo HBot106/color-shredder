@@ -9,6 +9,8 @@ BLACK = numpy.zeros(3, numpy.uint8)
 
 # converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
+
+    # converts the given canvas into a format that the PNG module can use to write a png
     transposedCanvas = numpy.transpose(canvas, (1, 0, 2))
     flippedColors = numpy.flip(transposedCanvas, 2)
     rawOutput = numpy.reshape(
@@ -18,13 +20,15 @@ def toRawOutput(canvas):
 
 # gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
 def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
+    
+    # Setup
     index = 0
     width = canvas.shape[0]
     height = canvas.shape[1]
     hasValidNeighbor = False
     neighborDifferences = numpy.zeros(8, numpy.uint64)
 
-    # loop over the 3x3 grid surrounding the location being considered
+    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
 
@@ -67,15 +71,17 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     else:
         return sys.maxsize
 
-
+# Gives all valid locations surrounding a given location
 def getValidNeighbors(canvas, coordX, coordY):
+
+    # Setup
     index = 0
     width = canvas.shape[0]
     height = canvas.shape[1]
     neighbors = numpy.zeros([8, 2], numpy.uint8)
     hasValidNeighbor = False
 
-    # loop over the 3x3 grid surrounding the location being considered
+    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
 
