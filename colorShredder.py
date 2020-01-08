@@ -1,7 +1,6 @@
 import png
 import numpy
 
-import random
 import sys
 import concurrent.futures
 import time
@@ -20,6 +19,7 @@ SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
 MAX_PAINTERS = 256
+MIN_MULTI_WORKLOAD = 1000
 
 BLACK = numpy.array([0, 0, 0])
 WHITE = numpy.array([255, 255, 255])
@@ -61,6 +61,7 @@ workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint8)
 
 
 def main():
+    # Global Access
     global allColors
 
     # Setup
@@ -73,7 +74,7 @@ def main():
     paintCanvas()
     elapsedTime = time.time() - beginTime
 
-    # Final Print
+    # Final Print Authoring
     printCurrentCanvas()
     print("Painting Completed in " +
           "{:3.2f}".format(elapsedTime / 60) + " minutes!")
@@ -90,8 +91,10 @@ def paintCanvas():
         continuePainting()
 
 
-# start the painting
+# start the painting, by placing the first target color
 def startPainting():
+
+    # Global Access
     global colorIndex
     global isAvailable
     global workingCanvas
@@ -113,19 +116,24 @@ def startPainting():
 
 # continue the painting
 def continuePainting():
+
+    # Global Access
     global colorIndex
     global isAvailable
     global workingCanvas
     global coloredCount
 
+    # Setup
     availableCount = len(isAvailable.keys())
 
-    # if more than 2000 locations are available, allow multiprocessing
+    # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
     if ((availableCount > 1000) and USE_MULTIPROCESSING):
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
 
-        # cap the number of workers so that there are at least 250 free lcoations per worker
+        # cap the number of workers so that there are at least 250 free locations per worker
+        # this keeps the number of collisions down
+        # loop over each one
         for _ in range(min(((availableCount//250) + 1, MAX_PAINTERS))):
 
             # get the color to be placed
@@ -147,9 +155,11 @@ def continuePainting():
             # attempt to paint the color at the corresponding location
             paintToCanvas(workerTargetColor, workerMinCoord)
 
+        # teardown the process pool
         painterManager.shutdown()
 
-    # otherwise, use only this process
+    # otherwise, use only the main process
+    # This is because the overhead of multithreading makes singlethreading better for small problems
     else:
         # get the color to be placed
         targetColor = allColors[colorIndex]
@@ -189,11 +199,14 @@ def getBestPositionForColor(requestedColor):
 
 # attempts to paint the requested color at the requested location; checks for collisions
 def paintToCanvas(requestedColor, requestedCoord):
+
+    # Global Access
     global collisionCount
     global coloredCount
     global isAvailable
     global workingCanvas
 
+    # Setup
     requestedCoordX = requestedCoord[0]
     requestedCoordY = requestedCoord[1]
 
@@ -235,8 +248,11 @@ def paintToCanvas(requestedColor, requestedCoord):
 
 # prints the current state of workingCanvas as well as progress stats
 def printCurrentCanvas():
+
+    # Global Access
     global printTime
 
+    # Setup
     beginTime = time.time()
     rate = 100/(beginTime - printTime)
 
@@ -247,12 +263,10 @@ def printCurrentCanvas():
     myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
     myFile.close()
 
+    # Info Print
     printTime = time.time()
-
     print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
         coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
-
-    # time.sleep(.5)
 
 
 if __name__ == '__main__':
