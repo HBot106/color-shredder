@@ -1,55 +1,34 @@
 import colorTools
+
+import sys
 import numpy
 
 # BLACK reference
-BLACK = [0, 0, 0]
+BLACK = numpy.zeros(3)
 
 
-# takes the canvas (2d color list) and converts it to
-# the format [[r,g,b,r,g,b...],[r,g,b,r,g,b...]...]
-# for later writing to a png
+# converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
-    rawOutput = []
-    height = len(canvas)
-    width = len(canvas[0])
 
-    for y in range(width):
-        rowOutput = []
-        for x in range(height):
-            rowOutput += getColorAt(canvas, [x, y])
-        rawOutput.append(rowOutput)
+    # converts the given canvas into a format that the PNG module can use to write a png
+    transposedCanvas = numpy.transpose(canvas, (1, 0, 2))
+    flippedColors = numpy.flip(transposedCanvas, 2)
+    rawOutput = numpy.reshape(
+        flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
     return rawOutput
 
 
-def constructBlank(width, height):
-    canvas = []
+# gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
+def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
+    
+    # Setup
+    index = 0
+    width = canvas.shape[0]
+    height = canvas.shape[1]
+    hasValidNeighbor = False
+    neighborDifferences = numpy.zeros(8, numpy.uint64)
 
-    # loop over the whole canvas, adding sub-lists of BLACK color objects to a super-list
-    for _ in range(width):
-        column = []
-        for _ in range(height):
-            column.append(BLACK)
-        canvas.append(column)
-
-    return canvas
-
-
-# set the color at a position in the canvas
-def setColorAt(canvas, color, coord):
-    canvas[coord[0]][coord[1]] = color
-
-
-# get the color at a position in the canvas
-def getColorAt(canvas, coord):
-    return canvas[coord[0]][coord[1]]
-
-
-def considerPixelAt(canvas, coord, targetColor, useAverage):
-    neighborDifferences = []
-    width = len(canvas)
-    height = len(canvas[0])
-
-    # loop over the 3x3 grid surrounding the location being considered
+    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
 
@@ -59,31 +38,50 @@ def considerPixelAt(canvas, coord, targetColor, useAverage):
                 continue
 
             # calculate the neigbor's coordinates
-            neighbor = [coord[0] - 1 + i,
-                        coord[1] - 1 + j]
+            neighborX = coordX - 1 + i
+            neighborY = coordY - 1 + j
 
-            # if they are within the canvas add them to the final neigbor list
-            if (0 <= neighbor[0] < width) and (0 <= neighbor[1] < height) and (canvas[neighbor[0]][neighbor[1]] != BLACK):
-                considerColor = canvas[neighbor[0]][neighbor[1]]
-                neighborDifferences.append(
-                    colorTools.getColorDifferenceSquared(targetColor, considerColor))
+            # neighbor must be in the canvas
+            neighborIsInCanvas = ((0 <= neighborX < width)
+                                  and (0 <= neighborY < height))
+            if (neighborIsInCanvas):
 
-    if (useAverage):
-        output = numpy.average(neighborDifferences)
-        neighborDifferences.clear()
-        return output
+                # neighbor must not be BLACK
+                neighborIsBlack = numpy.array_equal(
+                    canvas[neighborX, neighborY], BLACK)
+                if not (neighborIsBlack):
+
+                    # get colDiff between the neighbor and target colors, add it to the list
+                    neigborColor = canvas[neighborX, neighborY]
+                    neighborDifferences[index] = colorTools.getColorDiff(
+                        targetColor, neigborColor)
+                    hasValidNeighbor = True
+                    index += 1
+
+    # check if the considered pixel has at least one valid neighbor
+    if (hasValidNeighbor):
+
+        # either mean or min
+        if (useAverage):
+            return numpy.mean(neighborDifferences[0:index])
+        else:
+            return numpy.min(neighborDifferences[0:index])
+
+    # if it has no valid neighbors, maximise its colorDiff
     else:
-        output = numpy.min(neighborDifferences)
-        neighborDifferences.clear()
-        return output
+        return sys.maxsize
 
+# Gives all valid locations surrounding a given location
+def getValidNeighbors(canvas, coordX, coordY):
 
-def getValidNeighbors(canvas, coord):
-    neighbors = []
-    width = len(canvas)
-    height = len(canvas[0])
+    # Setup
+    index = 0
+    width = canvas.shape[0]
+    height = canvas.shape[1]
+    neighbors = numpy.zeros([8, 2], numpy.uint8)
+    hasValidNeighbor = False
 
-    # loop over the 3x3 grid surrounding the location being considered
+    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
 
@@ -93,11 +91,28 @@ def getValidNeighbors(canvas, coord):
                 continue
 
             # calculate the neigbor's coordinates
-            neighbor = [coord[0] - 1 + i,
-                        coord[1] - 1 + j]
+            neighborX = coordX - 1 + i
+            neighborY = coordY - 1 + j
 
-            # if they are within the canvas add them to the final neigbor list
-            if (0 <= neighbor[0] < width) and (0 <= neighbor[1] < height) and (canvas[neighbor[0]][neighbor[1]] == BLACK):
-                neighbors.append(neighbor)
+            # neighbor must be in the canvas
+            neighborIsInCanvas = ((0 <= neighborX < width)
+                                  and (0 <= neighborY < height))
+            if (neighborIsInCanvas):
 
-    return neighbors
+                # neighbor must be BLACK
+                neighborIsBlack = numpy.array_equal(
+                    canvas[neighborX, neighborY], BLACK)
+                if (neighborIsBlack):
+
+                    # add to the list of valid neighbors
+                    neighbors[index] = numpy.array([neighborX, neighborY])
+                    index += 1
+                    hasValidNeighbor = True
+
+    # check if the considered pixel has at least one valid neighbor
+    if (hasValidNeighbor):
+        return neighbors[0:index]
+
+    # if it has no valid neighbors, give none
+    else:
+        return numpy.array([])

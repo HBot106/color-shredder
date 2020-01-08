@@ -1,7 +1,6 @@
 import png
 import numpy
 
-import random
 import sys
 import concurrent.futures
 import time
@@ -15,13 +14,18 @@ import canvasTools
 
 FILENAME = "painting"
 
-USE_AVERAGE = False
+USE_AVERAGE = True
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
 MAX_PAINTERS = 256
+MIN_MULTI_WORKLOAD = 1000
 
-BLACK = [0, 0, 0]
+BLACK = numpy.array([0, 0, 0])
+WHITE = numpy.array([255, 255, 255])
+RED = numpy.array([255, 0, 0])
+GREEN = numpy.array([0, 255, 0])
+BLUE = numpy.array([0, 0, 255])
 
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
@@ -29,40 +33,40 @@ CANVAS_WIDTH = 64
 START_X = 32
 START_Y = 32
 
-PRINT_RATE = 1
+PRINT_RATE = 25
 INVALID_COORD = numpy.array([-1, -1])
 
-# globals
-printCount = 0
+# =============================================================================
+# GLOBALS
+# =============================================================================
+
+# position in and the list of all colors to be placed
+colorIndex = 0
+allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3])
+
+# used for ongoing speed calculation
 printTime = time.time()
+
+# tracked for informational printout / progress report
 collisionCount = 0
-totalColored = 0
-totalColors = 0
-isAvailable = []
-allColors = []
-startCoords = []
-workingCanvas = []
+coloredCount = 0
+
+# dictionary used for lookup of available locations
+isAvailable = {}
+
+# holds the current state of the canvas
+workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint8)
+
+# =============================================================================
 
 
 def main():
-    global totalColors
-    global isAvailable
+    # Global Access
     global allColors
-    global startCoords
-    global workingCanvas
 
     # Setup
-    isAvailable = []
-    allColors = colorTools.generateColors(COLOR_BIT_DEPTH)
-    totalColors = len(allColors)
-    startCoords = [START_X, START_Y]
-    # Builds a 3D list of the following form:
-    # [ [BLACK, BLACK, BLACK, ...]
-    #   [BLACK, BLACK, BLACK, ...]
-    #   [BLACK, BLACK, BLACK, ...]...]
-    # where  BLACK = [0, 0, 0]
-    workingCanvas = canvasTools.constructBlank(CANVAS_WIDTH, CANVAS_HEIGHT)
-    # therefore workingCanvas[x][y] is a list coresponding to the color of a pixel: [r, g, b]
+    allColors = colorTools.generateColors(
+        COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
 
     # Work
     print("Painting Canvas...")
@@ -70,17 +74,185 @@ def main():
     paintCanvas()
     elapsedTime = time.time() - beginTime
 
-    # Final Print
+    # Final Print Authoring
     printCurrentCanvas()
     print("Painting Completed in " +
           "{:3.2f}".format(elapsedTime / 60) + " minutes!")
 
 
-def printCurrentCanvas():
-    global printCount
-    global printTime
+# manages painting of the canvas
+def paintCanvas():
+
+    # draw the first color at the starting pixel
+    startPainting()
+
+    # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
+    while(isAvailable.keys() and (colorIndex < allColors.shape[0])):
+        continuePainting()
+
+
+# start the painting, by placing the first target color
+def startPainting():
+
+    # Global Access
+    global colorIndex
+    global isAvailable
+    global workingCanvas
+    global coloredCount
+
+    # draw the first color at the starting pixel
+    targetColor = allColors[colorIndex]
+    workingCanvas[START_X, START_Y] = targetColor
+    colorIndex += 1
+
+    # add its neigbors to isAvailable
+    for neighbor in canvasTools.getValidNeighbors(workingCanvas, START_X, START_Y):
+        isAvailable.update({neighbor.data.tobytes(): neighbor})
+
+    # finish first pixel
+    coloredCount = 1
+    printCurrentCanvas()
+
+
+# continue the painting
+def continuePainting():
+
+    # Global Access
+    global colorIndex
+    global isAvailable
+    global workingCanvas
+    global coloredCount
+
+    # Setup
+    availableCount = len(isAvailable.keys())
+
+    # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
+    if ((availableCount > 1000) and USE_MULTIPROCESSING):
+        painterManager = concurrent.futures.ProcessPoolExecutor()
+        painters = []
+
+        # cap the number of workers so that there are at least 250 free locations per worker
+        # this keeps the number of collisions down
+        # loop over each one
+        for _ in range(min(((availableCount//250) + 1, MAX_PAINTERS))):
+
+            # get the color to be placed
+            targetColor = allColors[colorIndex]
+            colorIndex += 1
+
+            # schedule a worker to find the best location for that color
+            painters.append(painterManager.submit(
+                getBestPositionForColor, targetColor))
+
+        # as each worker completes
+        for painter in concurrent.futures.as_completed(painters):
+
+            # collect the best location for that color
+            workerResult = painter.result()
+            workerTargetColor = workerResult[0]
+            workerMinCoord = workerResult[1]
+
+            # attempt to paint the color at the corresponding location
+            paintToCanvas(workerTargetColor, workerMinCoord)
+
+        # teardown the process pool
+        painterManager.shutdown()
+
+    # otherwise, use only the main process
+    # This is because the overhead of multithreading makes singlethreading better for small problems
+    else:
+        # get the color to be placed
+        targetColor = allColors[colorIndex]
+        colorIndex += 1
+
+        # find the best location for that color
+        bestResult = getBestPositionForColor(targetColor)
+        resultColor = bestResult[0]
+        resultCoord = bestResult[1]
+
+        # attempt to paint the color at the corresponding location
+        paintToCanvas(resultColor, resultCoord)
+
+
+# gives the best location among all avilable for the requested color
+# also returns the color itself
+def getBestPositionForColor(requestedColor):
+
+    # reset minimums
+    MinCoord = INVALID_COORD
+    minDistance = sys.maxsize
+
+    # for every available position in the boundry, perform the check, keep the best position:
+    for available in isAvailable.values():
+
+        # consider the available location with the target color
+        check = canvasTools.considerPixelAt(
+            workingCanvas, available[0], available[1], requestedColor, USE_AVERAGE)
+
+        # if it is the best so far save the value and its location
+        if (check < minDistance):
+            minDistance = check
+            MinCoord = numpy.array(available)
+
+    return [requestedColor, MinCoord]
+
+
+# attempts to paint the requested color at the requested location; checks for collisions
+def paintToCanvas(requestedColor, requestedCoord):
+
+    # Global Access
+    global collisionCount
+    global coloredCount
+    global isAvailable
     global workingCanvas
 
+    # Setup
+    requestedCoordX = requestedCoord[0]
+    requestedCoordY = requestedCoord[1]
+
+    # double check the the pixel is available
+    currentlyAvailable = isAvailable.get(
+        requestedCoord.tostring(), INVALID_COORD)
+    availabilityCheck = not numpy.array_equal(
+        currentlyAvailable, INVALID_COORD)
+    if (availabilityCheck):
+
+        # double check the the pixel is BLACK
+        isBlack = numpy.array_equal(
+            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], BLACK)
+        if (isBlack):
+
+            # the best position for requestedColor has been found color it
+            workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
+
+            # remove that position from isAvailable and increment the count
+            isAvailable.pop(requestedCoord.tostring())
+            coloredCount += 1
+
+            # each valid neighbor position should be added to isAvailable
+            for neighbor in canvasTools.getValidNeighbors(workingCanvas, requestedCoordX, requestedCoordY):
+                isAvailable.update({neighbor.data.tobytes(): neighbor})
+
+        # collision
+        else:
+            collisionCount += 1
+
+    # collision
+    else:
+        collisionCount += 1
+
+    # print progress
+    if (coloredCount % PRINT_RATE == 0):
+        printCurrentCanvas()
+
+
+# prints the current state of workingCanvas as well as progress stats
+def printCurrentCanvas():
+
+    # Global Access
+    global printTime
+
+    # Setup
     beginTime = time.time()
     rate = 100/(beginTime - printTime)
 
@@ -90,123 +262,11 @@ def printCurrentCanvas():
     myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
     myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
     myFile.close()
-    printCount += 1
 
+    # Info Print
     printTime = time.time()
-    elapsedTime = printTime - beginTime
-
-    print("Pixels Colored: " + str(totalColored) + ", Pixels Available: " + str(len(isAvailable)) +
-          ", Percent Complete: " + "{:3.2f}".format(totalColored * 100 / CANVAS_WIDTH / CANVAS_HEIGHT) +
-          "%, PNG written in " + "{:3.2f}".format(elapsedTime) + " seconds, Total Collisions: " +
-          str(collisionCount) + ", Rate: " + "{:3.2f}".format(rate) + " pixels/sec.", end='\n')
-
-
-def paintToCanvas(workerOutput):
-    global collisionCount
-    global totalColored
-    global isAvailable
-    global workingCanvas
-
-    workerTargetColor = workerOutput[0]
-    workerMinCoord = workerOutput[1]
-    # double check the the pixel is both available and hasnt been colored yet
-    if (workerMinCoord in isAvailable) and (canvasTools.getColorAt(workingCanvas, workerMinCoord) == BLACK):
-
-        # the best position for workerTargetColor has been found; color it,
-        # increment the count, and remove that position from isAvailable
-        canvasTools.setColorAt(
-            workingCanvas, workerTargetColor, workerMinCoord)
-        isAvailable.remove(workerMinCoord)
-        totalColored += 1
-
-        # each adjacent position should be added to isAvailable, unless
-        # it is already colored, it is already in the list, or it is outside the canvas
-        for neighbor in canvasTools.getValidNeighbors(workingCanvas, workerMinCoord):
-            if not (neighbor in isAvailable):
-                isAvailable.append(neighbor)
-
-    # we could just discard the pixel in the case of a collision, but for
-    # the sake of completeness we will add it back to the allColors list since it was popped
-    else:
-        allColors.append(workerTargetColor)
-        collisionCount += 1
-        # print("[Collision]")
-
-    if (totalColored % 100 == 0):
-        printCurrentCanvas()
-
-
-def paintCanvas():
-    global isAvailable
-    global allColors
-    global workingCanvas
-    global totalColored
-
-    # draw the first color at the starting pixel
-    targetColor = allColors.pop()
-    canvasTools.setColorAt(workingCanvas, targetColor, startCoords)
-
-    # add its neigbors to isAvailable
-    for neighbor in canvasTools.getValidNeighbors(workingCanvas, startCoords):
-        isAvailable.append(neighbor)
-
-    # finish first pixel
-    totalColored = 1
-    printCurrentCanvas()
-
-    printerManager = concurrent.futures.ThreadPoolExecutor()
-
-    # while more uncolored boundry locations exist
-    while(isAvailable):
-        availableCount = len(isAvailable)
-
-        # continue painting
-        if (availableCount > 2000):
-            painterManager = concurrent.futures.ProcessPoolExecutor()
-            painters = []
-
-            for _ in range(min(((availableCount//250) + 1, 64))):
-                # get the color to be placed
-                targetColor = allColors.pop()
-
-                painters.append(painterManager.submit(
-                    getBestPositionForColor, targetColor))
-
-            for painter in concurrent.futures.as_completed(painters):
-                paintToCanvas(painter.result())
-
-            painterManager.shutdown()
-
-        else:
-            # get the color to be placed
-            targetColor = allColors.pop()
-
-            paintToCanvas(getBestPositionForColor(targetColor))
-
-    printerManager.shutdown()
-
-
-def getBestPositionForColor(targetColor):
-    global isAvailable
-    global workingCanvas
-
-    # reset minimums
-    workerMinCoord = [0, 0]
-    minDistance = sys.maxsize
-
-    # for every available position in the boundry, perform the check, keep the best position:
-    for available in isAvailable:
-
-        # consider the available location with the target color
-        check = canvasTools.considerPixelAt(
-            workingCanvas, available, targetColor, USE_AVERAGE)
-
-        # if it is the best so far save the value and its location
-        if (check < minDistance):
-            minDistance = check
-            workerMinCoord = available
-
-    return [targetColor, workerMinCoord]
+    print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
+        coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
 
 
 if __name__ == '__main__':
