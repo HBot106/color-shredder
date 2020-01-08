@@ -11,24 +11,9 @@ BLACK = numpy.zeros(3, numpy.uint8)
 def toRawOutput(canvas):
     transposedCanvas = numpy.transpose(canvas, (1, 0, 2))
     flippedColors = numpy.flip(transposedCanvas, 2)
-    rawOutput = numpy.reshape(flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
+    rawOutput = numpy.reshape(
+        flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
     return rawOutput
-
-    # rawOutput = []
-    # height = canvas.shape[0]
-    # width = canvas.shape[1]
-
-    # for y in range(height):
-    #     rowOutput = []
-    #     for x in range(width):
-    #         color = []
-    #         color.append(canvas[x, y][0])
-    #         color.append(canvas[x, y][1])
-    #         color.append(canvas[x, y][2])
-
-    #         rowOutput += color
-    #     rawOutput.append(rowOutput)
-    # return rawOutput
 
 
 # gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
@@ -70,8 +55,6 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
                     index += 1
 
     # check if the considered pixel has at least one valid neighbor
-    # hasValidNeighbor = not numpy.array_equal(
-    #     neighborDifferences, numpy.zeros(8, numpy.uint8))
     if (hasValidNeighbor):
 
         # either mean or min
