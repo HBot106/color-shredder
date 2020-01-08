@@ -55,10 +55,12 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
 
 # generate all colors of the color space, don't use multiprocessing
 def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
-    allColors = numpy.zeros([totalColors, 3])
 
+    # Setup
+    allColors = numpy.zeros([totalColors, 3])
     index = 0
-    # loop over all r,g,b values
+
+    # Generate all colors by looping over all r,g,b values
     for r in range(valuesPerChannel):
         for g in range(valuesPerChannel):
             for b in range(valuesPerChannel):
@@ -66,6 +68,7 @@ def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
                 allColors[index] = numpy.array([r, g, b])
                 index += 1
 
+        # Info Print
         print("Generating colors... {:3.2f}".format(
             100*r/valuesPerChannel) + '%' + " complete.", end='\r')
 
@@ -75,6 +78,8 @@ def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 
 # generate all colors of the color space, use multiprocessing
 def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
+
+    # Setup
     allColors = numpy.zeros([totalColors, 3])
 
     # using multiprocessing kick off a worker for each red value in range of red values
@@ -98,9 +103,11 @@ def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 
 # for a given red value generate every color possible with the remaing green and blue values
 def generateColors_worker(r, valuesPerChannel):
-    workerColors = numpy.zeros([valuesPerChannel**2, 3])
 
+    # Setup
+    workerColors = numpy.zeros([valuesPerChannel**2, 3])
     index = 0
+
     # loop over every value of green and blue producing each color that can have the given red value
     for g in range(valuesPerChannel):
         for b in range(valuesPerChannel):
