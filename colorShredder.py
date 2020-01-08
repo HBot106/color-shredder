@@ -42,7 +42,7 @@ INVALID_COORD = numpy.array([-1, -1])
 
 # position in and the list of all colors to be placed
 colorIndex = 0
-allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint8)
+allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3])
 
 # used for ongoing speed calculation
 printTime = time.time()

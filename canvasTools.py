@@ -4,7 +4,7 @@ import sys
 import numpy
 
 # BLACK reference
-BLACK = numpy.zeros(3, numpy.uint8)
+BLACK = numpy.zeros(3)
 
 
 # converts a canvas into raw data for writing to a png
