@@ -15,7 +15,7 @@ import canvasTools
 
 FILENAME = "painting"
 
-USE_AVERAGE = False
+USE_AVERAGE = True
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
@@ -33,7 +33,7 @@ CANVAS_WIDTH = 64
 START_X = 32
 START_Y = 32
 
-PRINT_RATE = 1
+PRINT_RATE = 25
 INVALID_COORD = numpy.array([-1, -1])
 
 # =============================================================================
@@ -121,7 +121,7 @@ def continuePainting():
     availableCount = len(isAvailable.keys())
 
     # if more than 2000 locations are available, allow multiprocessing
-    if ((availableCount > 2000) and USE_MULTIPROCESSING):
+    if ((availableCount > 1000) and USE_MULTIPROCESSING):
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
 
