@@ -19,7 +19,7 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
     # Setup, how many colors are needed?
     valuesPerChannel = 2**COLOR_BIT_DEPTH
     totalColors = valuesPerChannel**3
-    allColors = numpy.zeros([totalColors, 3], numpy.uint8)
+    allColors = numpy.zeros([totalColors, 3])
 
     # Info Print
     beginTime = time.time()
