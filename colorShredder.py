@@ -22,7 +22,7 @@ USE_MULTIPROCESSING = True
 
 LOCATIONS_PER_PAINTER = 100
 MAX_PAINTERS = 64
-MIN_MULTI_WORKLOAD = 1000
+MIN_MULTI_WORKLOAD = 400
 
 BLACK = numpy.array([0, 0, 0])
 WHITE = numpy.array([255, 255, 255])
@@ -137,7 +137,7 @@ def continuePainting():
         # cap the number of workers so that there are at least 250 free locations per worker
         # this keeps the number of collisions down
         # loop over each one
-        for _ in range(min(((availableCount//LOCATIONS_PER_PAINTER) + 1, MAX_PAINTERS))):
+        for _ in range(min(((availableCount//LOCATIONS_PER_PAINTER), MAX_PAINTERS))):
 
             # get the color to be placed
             targetColor = allColors[colorIndex]

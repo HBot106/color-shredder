@@ -10,7 +10,10 @@ def getColorDiff(targetColor_A, targetColor_B):
     colorDifference = numpy.subtract(targetColor_A, targetColor_B)
     differenceSquared = numpy.multiply(colorDifference, colorDifference)
     squaresSum = numpy.sum(differenceSquared)
-    return numpy.sqrt(squaresSum)
+
+    # to get distance the sqrt must be taken, but we don't care about the actual distance, just relative distances, so we skip the sqrt for a constant runtime improvement
+    # return numpy.sqrt(squaresSum)
+    return squaresSum
 
 
 # generate all colors of the color space, then shuffle the resulting array
