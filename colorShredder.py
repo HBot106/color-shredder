@@ -5,6 +5,8 @@ import sys
 import concurrent.futures
 import time
 
+from PIL import Image
+
 import colorTools
 import canvasTools
 
@@ -18,7 +20,8 @@ USE_AVERAGE = True
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
-MAX_PAINTERS = 256
+LOCATIONS_PER_PAINTER = 100
+MAX_PAINTERS = 64
 MIN_MULTI_WORKLOAD = 1000
 
 BLACK = numpy.array([0, 0, 0])
@@ -45,7 +48,7 @@ colorIndex = 0
 allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3])
 
 # used for ongoing speed calculation
-printTime = time.time()
+lastPrintTime = time.time()
 
 # tracked for informational printout / progress report
 collisionCount = 0
@@ -127,14 +130,14 @@ def continuePainting():
     availableCount = len(isAvailable.keys())
 
     # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
-    if ((availableCount > 1000) and USE_MULTIPROCESSING):
+    if ((availableCount > MIN_MULTI_WORKLOAD) and USE_MULTIPROCESSING):
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
 
         # cap the number of workers so that there are at least 250 free locations per worker
         # this keeps the number of collisions down
         # loop over each one
-        for _ in range(min(((availableCount//250) + 1, MAX_PAINTERS))):
+        for _ in range(min(((availableCount//LOCATIONS_PER_PAINTER) + 1, MAX_PAINTERS))):
 
             # get the color to be placed
             targetColor = allColors[colorIndex]
@@ -250,23 +253,31 @@ def paintToCanvas(requestedColor, requestedCoord):
 def printCurrentCanvas():
 
     # Global Access
-    global printTime
+    global lastPrintTime
 
-    # Setup
-    beginTime = time.time()
-    rate = 100/(beginTime - printTime)
+    # get elapsed time
+    currentTime = time.time()
+    elapsed = currentTime - lastPrintTime
+    
+    # exclude duplicate printings
+    if (elapsed > 0):
+        rate = PRINT_RATE/elapsed
 
-    # write the png file
-    name = (FILENAME + '.png')
-    myFile = open(name, 'wb')
-    myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
-    myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
-    myFile.close()
+        # write the png file
+        name = (FILENAME + '.png')
+        myFile = open(name, 'wb')
+        myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
+        myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
+        myFile.close()
 
-    # Info Print
-    printTime = time.time()
-    print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-        coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
+        outImage = Image.fromarray(workingCanvas)
+        outImage.show()
+
+
+        # Info Print
+        lastPrintTime = currentTime
+        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
+            coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
 
 
 if __name__ == '__main__':
