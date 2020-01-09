@@ -18,9 +18,12 @@ def toRawOutput(canvas):
     return rawOutput
 
 
-# gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
+# Gets either the mean or min value of all the colorDiffs of valid neighbors of the considered pixel
+# # In other words it considers a location by calculating the euclidian color diiference between each of
+# # the location's neigbors and the target color to be placed. It then gives back either the min of
+# # these 8 values or the average of them.
 def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
-    
+
     # Setup
     index = 0
     width = canvas.shape[0]
@@ -72,6 +75,8 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
         return sys.maxsize
 
 # Gives all valid locations surrounding a given location
+
+
 def getValidNeighbors(canvas, coordX, coordY):
 
     # Setup

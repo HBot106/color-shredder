@@ -1,11 +1,11 @@
 import png
 import numpy
 
+import os
 import sys
 import concurrent.futures
 import time
 
-from PIL import Image
 
 import colorTools
 import canvasTools
@@ -21,7 +21,7 @@ SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
 LOCATIONS_PER_PAINTER = 100
-MAX_PAINTERS = 64
+MAX_PAINTERS = os.cpu_count() * 2
 MIN_MULTI_WORKLOAD = 400
 
 BLACK = numpy.array([0, 0, 0])
@@ -36,7 +36,7 @@ CANVAS_WIDTH = 64
 START_X = 32
 START_Y = 32
 
-PRINT_RATE = 25
+PRINT_RATE = 10
 INVALID_COORD = numpy.array([-1, -1])
 
 # =============================================================================
@@ -59,6 +59,9 @@ isAvailable = {}
 
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint8)
+
+# writes data arrays as PNG image files
+pngWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
 
 # =============================================================================
 
@@ -177,8 +180,10 @@ def continuePainting():
         paintToCanvas(resultColor, resultCoord)
 
 
-# gives the best location among all avilable for the requested color
-# also returns the color itself
+# Gives the best location among all avilable for the requested color; Also returns the color itself
+# # In other words, checks every available location using considerPixelAt(), keeping track of the
+# # minimum (best/closest) value returned and the location associated with it, this location "MinCoord"
+# # is where we will place the target color
 def getBestPositionForColor(requestedColor):
 
     # reset minimums
@@ -266,12 +271,8 @@ def printCurrentCanvas():
         # write the png file
         name = (FILENAME + '.png')
         myFile = open(name, 'wb')
-        myWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
-        myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
+        pngWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
         myFile.close()
-
-        # outImage = Image.fromarray(workingCanvas)
-        # outImage.show()
 
         # Info Print
         lastPrintTime = currentTime
