@@ -258,7 +258,7 @@ def printCurrentCanvas():
     # get elapsed time
     currentTime = time.time()
     elapsed = currentTime - lastPrintTime
-    
+
     # exclude duplicate printings
     if (elapsed > 0):
         rate = PRINT_RATE/elapsed
@@ -270,9 +270,8 @@ def printCurrentCanvas():
         myWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
         myFile.close()
 
-        outImage = Image.fromarray(workingCanvas)
-        outImage.show()
-
+        # outImage = Image.fromarray(workingCanvas)
+        # outImage.show()
 
         # Info Print
         lastPrintTime = currentTime
