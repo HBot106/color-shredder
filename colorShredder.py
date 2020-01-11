@@ -22,19 +22,15 @@ USE_MULTIPROCESSING = True
 
 LOCATIONS_PER_PAINTER = 50
 MAX_PAINTERS = os.cpu_count() * 2
-MIN_MULTI_WORKLOAD = 100
+MIN_MULTI_WORKLOAD = 200
 
 BLACK = numpy.array([0, 0, 0])
-WHITE = numpy.array([255, 255, 255])
-RED = numpy.array([255, 0, 0])
-GREEN = numpy.array([0, 255, 0])
-BLUE = numpy.array([0, 0, 255])
 
 COLOR_BIT_DEPTH = 8
-CANVAS_HEIGHT = 40
-CANVAS_WIDTH = 40
-START_X = 20
-START_Y = 20
+CANVAS_HEIGHT = 64
+CANVAS_WIDTH = 64
+START_X = 32
+START_Y = 32
 
 PRINT_RATE = 10
 INVALID_COORD = numpy.array([-1, -1])
@@ -81,7 +77,7 @@ def main():
     elapsedTime = time.time() - beginTime
 
     # Final Print Authoring
-    printCurrentCanvas()
+    printCurrentCanvas(True)
     print("Painting Completed in " +
           "{:3.2f}".format(elapsedTime / 60) + " minutes!")
 
@@ -142,13 +138,14 @@ def continuePainting():
         # loop over each one
         for _ in range(min(((availableCount//LOCATIONS_PER_PAINTER), MAX_PAINTERS))):
 
-            # get the color to be placed
-            targetColor = allColors[colorIndex]
-            colorIndex += 1
+            if(len(allColors) > colorIndex):
+                # get the color to be placed
+                targetColor = allColors[colorIndex]
+                colorIndex += 1
 
-            # schedule a worker to find the best location for that color
-            painters.append(painterManager.submit(
-                getBestPositionForColor, targetColor))
+                # schedule a worker to find the best location for that color
+                painters.append(painterManager.submit(
+                    getBestPositionForColor, targetColor))
 
         # as each worker completes
         for painter in concurrent.futures.as_completed(painters):
@@ -255,7 +252,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
 
 # prints the current state of workingCanvas as well as progress stats
-def printCurrentCanvas():
+def printCurrentCanvas(finalize=False):
 
     # Global Access
     global lastPrintTime
@@ -267,6 +264,10 @@ def printCurrentCanvas():
     # exclude duplicate printings
     if (elapsed > 0):
         rate = PRINT_RATE/elapsed
+
+        # cancel (probably a duplicate)
+        if (rate > 1000) and not (finalize):
+            return
 
         # write the png file
         name = (FILENAME + '.png')
