@@ -26,7 +26,7 @@ MIN_MULTI_WORKLOAD = 200
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
-COLOR_BIT_DEPTH = 8
+COLOR_BIT_DEPTH = 5
 CANVAS_HEIGHT = 64
 CANVAS_WIDTH = 64
 START_X = 32
@@ -133,7 +133,7 @@ def continuePainting():
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
 
-        # cap the number of workers so that there are at least 250 free locations per worker
+        # cap the number of workers so that there are at least LOCATIONS_PER_PAINTER free locations per worker
         # this keeps the number of collisions down
         # loop over each one
         for _ in range(min(((availableCount//LOCATIONS_PER_PAINTER), MAX_PAINTERS))):
