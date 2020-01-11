@@ -22,7 +22,7 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
     # Setup, how many colors are needed?
     valuesPerChannel = 2**COLOR_BIT_DEPTH
     totalColors = valuesPerChannel**3
-    allColors = numpy.zeros([totalColors, 3])
+    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
 
     # Info Print
     beginTime = time.time()
@@ -60,7 +60,8 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
 def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 
     # Setup
-    allColors = numpy.zeros([totalColors, 3])
+    workingColor = numpy.zeros([1, 3], numpy.uint32)
+    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
     index = 0
 
     # Generate all colors by looping over all r,g,b values
@@ -68,7 +69,11 @@ def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
         for g in range(valuesPerChannel):
             for b in range(valuesPerChannel):
                 # insert the color in its place
-                allColors[index] = numpy.array([r, g, b])
+                workingColor = numpy.array([
+                    int((r / valuesPerChannel) * 255),
+                    int((g / valuesPerChannel) * 255),
+                    int((b / valuesPerChannel) * 255)], numpy.uint32)
+                allColors[index] = workingColor
                 index += 1
 
         # Info Print
@@ -83,7 +88,7 @@ def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 
     # Setup
-    allColors = numpy.zeros([totalColors, 3])
+    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
 
     # using multiprocessing kick off a worker for each red value in range of red values
     generator = concurrent.futures.ProcessPoolExecutor()
@@ -108,14 +113,19 @@ def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 def generateColors_worker(r, valuesPerChannel):
 
     # Setup
-    workerColors = numpy.zeros([valuesPerChannel**2, 3])
+    workerColors = numpy.zeros([valuesPerChannel**2, 3], numpy.uint32)
+    workingColor = numpy.zeros([1, 3], numpy.uint32)
     index = 0
 
     # loop over every value of green and blue producing each color that can have the given red value
     for g in range(valuesPerChannel):
         for b in range(valuesPerChannel):
             # insert the color in its place
-            workerColors[index] = numpy.array([r, g, b])
+            workingColor = numpy.array([
+                    int((r / valuesPerChannel) * 255),
+                    int((g / valuesPerChannel) * 255),
+                    int((b / valuesPerChannel) * 255)], numpy.uint32)
+            workerColors[index] = workingColor
             index += 1
 
     # return all colors with the given red value

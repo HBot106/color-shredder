@@ -24,7 +24,7 @@ LOCATIONS_PER_PAINTER = 50
 MAX_PAINTERS = os.cpu_count() * 2
 MIN_MULTI_WORKLOAD = 200
 
-BLACK = numpy.array([0, 0, 0])
+BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
 COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 64
@@ -33,7 +33,7 @@ START_X = 32
 START_Y = 32
 
 PRINT_RATE = 10
-INVALID_COORD = numpy.array([-1, -1])
+INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
 # =============================================================================
 # GLOBALS
@@ -41,7 +41,7 @@ INVALID_COORD = numpy.array([-1, -1])
 
 # position in and the list of all colors to be placed
 colorIndex = 0
-allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3])
+allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint32)
 
 # used for ongoing speed calculation
 lastPrintTime = time.time()
@@ -54,7 +54,7 @@ coloredCount = 0
 isAvailable = {}
 
 # holds the current state of the canvas
-workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint8)
+workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint32)
 
 # writes data arrays as PNG image files
 pngWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
@@ -197,7 +197,7 @@ def getBestPositionForColor(requestedColor):
         # if it is the best so far save the value and its location
         if (check < minDistance):
             minDistance = check
-            MinCoord = numpy.array(available)
+            MinCoord = numpy.array(available, numpy.uint32)
 
     return [requestedColor, MinCoord]
 

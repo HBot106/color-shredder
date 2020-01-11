@@ -11,7 +11,8 @@ BLACK = numpy.zeros(3)
 def toRawOutput(canvas):
 
     # converts the given canvas into a format that the PNG module can use to write a png
-    transposedCanvas = numpy.transpose(canvas, (1, 0, 2))
+    simpleCanvas = numpy.array(canvas, numpy.uint8)
+    transposedCanvas = numpy.transpose(simpleCanvas, (1, 0, 2))
     flippedColors = numpy.flip(transposedCanvas, 2)
     rawOutput = numpy.reshape(
         flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
@@ -29,7 +30,7 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     width = canvas.shape[0]
     height = canvas.shape[1]
     hasValidNeighbor = False
-    neighborDifferences = numpy.zeros(8, numpy.uint64)
+    neighborDifferences = numpy.zeros(8, numpy.uint32)
 
     # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -83,7 +84,7 @@ def getValidNeighbors(canvas, coordX, coordY):
     index = 0
     width = canvas.shape[0]
     height = canvas.shape[1]
-    neighbors = numpy.zeros([8, 2], numpy.uint8)
+    neighbors = numpy.zeros([8, 2], numpy.uint32)
     hasValidNeighbor = False
 
     # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
@@ -110,7 +111,7 @@ def getValidNeighbors(canvas, coordX, coordY):
                 if (neighborIsBlack):
 
                     # add to the list of valid neighbors
-                    neighbors[index] = numpy.array([neighborX, neighborY])
+                    neighbors[index] = numpy.array([neighborX, neighborY], numpy.uint32)
                     index += 1
                     hasValidNeighbor = True
 
@@ -120,4 +121,4 @@ def getValidNeighbors(canvas, coordX, coordY):
 
     # if it has no valid neighbors, give none
     else:
-        return numpy.array([])
+        return numpy.array([], numpy.uint32)
