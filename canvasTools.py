@@ -3,6 +3,9 @@ import colorTools
 import sys
 import numpy
 
+UNCOLORED = 1
+COLORED = 2
+
 # BLACK reference
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
@@ -75,19 +78,19 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
     else:
         return sys.maxsize
 
+
 # Gives all valid locations surrounding a given location
-
-
-def getValidNeighbors(canvas, coordX, coordY):
+def getNeighbors(canvas, coordX, coordY, condition=None):
 
     # Setup
     index = 0
     width = canvas.shape[0]
     height = canvas.shape[1]
     neighbors = numpy.zeros([8, 2], numpy.uint32)
+    requestedNeigbors = numpy.zeros([8, 2], numpy.uint32)
     hasValidNeighbor = False
 
-    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
+    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
 
@@ -104,21 +107,44 @@ def getValidNeighbors(canvas, coordX, coordY):
             neighborIsInCanvas = ((0 <= neighborX < width)
                                   and (0 <= neighborY < height))
             if (neighborIsInCanvas):
+                neighbors[index] = numpy.array([neighborX, neighborY], uint32)
+                index += 1
 
-                # neighbor must be BLACK
-                neighborIsBlack = numpy.array_equal(
-                    canvas[neighborX, neighborY], BLACK)
-                if (neighborIsBlack):
+    # Of the 8 neighbors, filter out those not matching a given filter
+    index = 0
+    for neighbor in neighbors:
 
-                    # add to the list of valid neighbors
-                    neighbors[index] = numpy.array([neighborX, neighborY], numpy.uint32)
-                    index += 1
-                    hasValidNeighbor = True
+        # is the neighbor BLACK
+        neighborIsBlack = numpy.array_equal(
+                canvas[neighborX, neighborY], BLACK)
 
-    # check if the considered pixel has at least one valid neighbor
+        # FILTER: neighbors must be BLACK
+        if (condition == UNCOLORED):
+            if (neighborIsBlack):
+                # add to the list of valid neighbors
+                requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
+                index += 1
+                hasValidNeighbor = True
+            
+        # FILTER: neighbors must NOT be BLACK
+        elif (condition = COLORED):
+
+            if not (neighborIsBlack):
+                # add to the list of valid neighbors
+                requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
+                index += 1
+                hasValidNeighbor = True
+
+        # FILTER: None/Other
+        else:
+            # add all to the list of valid neighbors
+                requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
+                index += 1
+                hasValidNeighbor = True
+
+    # If any neighbors met the criteria, return them
     if (hasValidNeighbor):
         return neighbors[0:index]
-
     # if it has no valid neighbors, give none
     else:
         return numpy.array([], numpy.uint32)
