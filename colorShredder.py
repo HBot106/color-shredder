@@ -27,11 +27,11 @@ MIN_MULTI_WORKLOAD = 200
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
-COLOR_BIT_DEPTH = 5
+COLOR_BIT_DEPTH = 8
 CANVAS_HEIGHT = 100
 CANVAS_WIDTH = 100
-START_X = 32
-START_Y = 32
+START_X = 50
+START_Y = 50
 
 PRINT_RATE = 10
 INVALID_COORD = numpy.array([-1, -1], numpy.int8)
@@ -116,7 +116,7 @@ def startPainting():
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
-    coloredCount = 1
+    coloredCount = 10
     printCurrentCanvas()
 
 

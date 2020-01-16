@@ -27,16 +27,19 @@ def considerPixelAt(canvas, targetCoordinates, targetColor, useAverage):
 
     # Setup
     index = 0
-    neighborDifferences = numpy.zeros(8, numpy.uint32)
+    neighborDifferences = numpy.zeros([8,3], numpy.uint32)
 
     validNeighbors = removeNonColoredNeighbors(
         getNeighbors(canvas, targetCoordinates), canvas)
 
+    neigborhoodColor = BLACK
+
     for neighbor in validNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
-        neigborColor = canvas[neighbor[0], neighbor[1]]
-        neighborDifferences[index] = colorTools.getColorDiff(
-            targetColor, neigborColor)
+        neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
+        # neighborDifferences[index] = colorTools.getColorDiff(
+        #     targetColor, neigborhoodColor)
+        # neighborDifferences[index] = neigborhoodColor
         index += 1
 
     # check if the considered pixel has at least one valid neighbor
@@ -44,7 +47,9 @@ def considerPixelAt(canvas, targetCoordinates, targetColor, useAverage):
 
         # either mean or min
         if (useAverage):
-            return numpy.mean(neighborDifferences[0:index])
+            avgColor = numpy.divide(neigborhoodColor, numpy.array([index, index, index], numpy.uint32))
+            return colorTools.getColorDiff(avgColor, targetColor)
+            # return numpy.mean(neighborDifferences[0:index])
         else:
             return numpy.min(neighborDifferences[0:index])
 
