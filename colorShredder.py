@@ -17,7 +17,13 @@ import canvasTools
 
 FILENAME = "painting"
 
-USE_AVERAGE = True
+# MODES: 0 = MIN, 1 = AVERAGE, 2 = FAST_AVERAGE
+MIN = 0
+AVERAGE = 1
+FAST_AVERAGE = 2
+
+MODE = FAST_AVERAGE
+
 SHUFFLE_COLORS = True
 USE_MULTIPROCESSING = True
 
@@ -27,7 +33,7 @@ MIN_MULTI_WORKLOAD = 200
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
-COLOR_BIT_DEPTH = 8
+COLOR_BIT_DEPTH = 5
 CANVAS_HEIGHT = 100
 CANVAS_WIDTH = 100
 START_X = 50
@@ -196,7 +202,7 @@ def getBestPositionForColor(requestedColor):
 
         # consider the available location with the target color
         check = canvasTools.considerPixelAt(
-            workingCanvas, available, requestedColor, USE_AVERAGE)
+            workingCanvas, available, requestedColor, MODE)
 
         # if it is the best so far save the value and its location
         if (check < minDistance):
