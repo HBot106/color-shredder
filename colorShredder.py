@@ -55,7 +55,10 @@ coloredCount = 0
 uncoloredBoundaryRegion = {}
 
 # New R-Tree data structure testing
-rTreeProperties = rTree.Property(storage=rTree.RT_Memory, dimension=3, variant=rTree.RT_Star)
+rTreeProperties = rTree.Property()
+rTreeProperties.storage=rTree.RT_Memory
+rTreeProperties.dimension=3
+rTreeProperties.variant=rTree.RT_Star
 coloredBoundaryRegion = rTree.Index(properties=rTreeProperties)
 
 # holds the current state of the canvas
@@ -115,7 +118,7 @@ def startPainting():
     workingCanvas[startPoint[0], startPoint[1]] = targetColor
     colorIndex += 1
 
-    # add its neigbors to uncoloredBoundaryRegion
+    # add its neigbors to uncolored Boundary Region
     for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
         uncoloredBoundaryRegion.update({neighbor.data.tobytes(): neighbor})
 
@@ -238,11 +241,11 @@ def paintToCanvas(requestedColor, requestedCoord):
             # the best position for requestedColor has been found color it
             workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
 
-            # remove that position from uncoloredBoundaryRegion and increment the count
+            # remove that position from uncolored Boundary Region and increment the count
             uncoloredBoundaryRegion.pop(requestedCoord.tostring())
             coloredCount += 1
 
-            # each valid neighbor position should be added to uncoloredBoundaryRegion
+            # each valid neighbor position should be added to uncolored Boundary Region
             for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
                 uncoloredBoundaryRegion.update(
                     {neighbor.data.tobytes(): neighbor})
