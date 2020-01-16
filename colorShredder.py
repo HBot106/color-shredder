@@ -6,40 +6,32 @@ import sys
 import concurrent.futures
 import time
 
-
 import colorTools
 import canvasTools
-
+import config
 
 # =============================================================================
 # MACROS
 # =============================================================================
-
 FILENAME = "painting"
 
-# MODES: 0 = MIN, 1 = AVERAGE, 2 = FAST_AVERAGE
-MIN = 0
-AVERAGE = 1
-FAST_AVERAGE = 2
+MODE = config.mode['DEFAULT']
 
-MODE = FAST_AVERAGE
+SHUFFLE_COLORS = config.color['SHUFFLE']
+USE_MULTIPROCESSING = config.color['SHUFFLE']
 
-SHUFFLE_COLORS = True
-USE_MULTIPROCESSING = True
-
-LOCATIONS_PER_PAINTER = 50
+PRINT_RATE = config.painter['PRINT_RATE']
+LOCATIONS_PER_PAINTER = config.painter['LOCATIONS_PER_PAINTER']
+MIN_MULTI_WORKLOAD = config.painter['MIN_MULTI_WORKLOAD']
 MAX_PAINTERS = os.cpu_count() * 2
-MIN_MULTI_WORKLOAD = 200
+
+COLOR_BIT_DEPTH = config.canvas['COLOR_BIT_DEPTH']
+CANVAS_SIZE = numpy.array(
+    [config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT']], numpy.uint32)
+START_POINT = numpy.array(
+    [config.canvas['START_X'], config.canvas['START_Y']], numpy.uint32)
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
-
-COLOR_BIT_DEPTH = 5
-CANVAS_HEIGHT = 100
-CANVAS_WIDTH = 100
-START_X = 50
-START_Y = 50
-
-PRINT_RATE = 10
 INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
 # =============================================================================
@@ -48,7 +40,8 @@ INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
 # position in and the list of all colors to be placed
 colorIndex = 0
-allColors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint32)
+colorCount = ((2**COLOR_BIT_DEPTH)**3)
+allColors = numpy.zeros([colorCount, 3], numpy.uint32)
 
 # used for ongoing speed calculation
 lastPrintTime = time.time()
@@ -61,10 +54,10 @@ coloredCount = 0
 isAvailable = {}
 
 # holds the current state of the canvas
-workingCanvas = numpy.zeros([CANVAS_WIDTH, CANVAS_HEIGHT, 3], numpy.uint32)
+workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
 # writes data arrays as PNG image files
-pngWriter = png.Writer(CANVAS_WIDTH, CANVAS_HEIGHT, greyscale=False)
+pngWriter = png.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
 
 # =============================================================================
 
@@ -110,7 +103,7 @@ def startPainting():
     global coloredCount
 
     # Setup
-    startPoint = numpy.array([START_X, START_Y], numpy.uint32)
+    startPoint = numpy.array([START_POINT[0], START_POINT[1]], numpy.uint32)
     targetColor = allColors[colorIndex]
 
     # draw the first color at the starting pixel
@@ -276,7 +269,7 @@ def printCurrentCanvas(finalize=False):
         rate = PRINT_RATE/elapsed
 
         # cancel (probably a duplicate)
-        if (rate > 1000) and not (finalize):
+        if (rate > 500) and not (finalize):
             return
 
         # write the png file
@@ -288,7 +281,7 @@ def printCurrentCanvas(finalize=False):
         # Info Print
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-            coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_WIDTH / CANVAS_HEIGHT), collisionCount, rate), end='\n')
+            coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
 
 
 if __name__ == '__main__':
