@@ -21,9 +21,9 @@ painter = dict(
 )
 
 canvas = dict(
-    COLOR_BIT_DEPTH = 5,
+    COLOR_BIT_DEPTH = 8,
     CANVAS_WIDTH = 64,
-    CANVAS_HEIGHT = 64,
-    START_X = 32,
-    START_Y = 32
+    CANVAS_HEIGHT = 512,
+    START_X = 16,
+    START_Y = 0
 )
