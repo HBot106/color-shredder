@@ -1,5 +1,6 @@
 import png
 import numpy
+from rtree import index as rTree
 
 import os
 import sys
@@ -51,7 +52,11 @@ collisionCount = 0
 coloredCount = 0
 
 # dictionary used for lookup of available locations
-isAvailable = {}
+uncoloredBoundaryRegion = {}
+
+# New R-Tree data structure testing
+rTreeProperties = rTree.Property(storage=rTree.RT_Memory, dimension=3, variant=rTree.RT_Star)
+coloredBoundaryRegion = rTree.Index(properties=rTreeProperties)
 
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
@@ -89,7 +94,7 @@ def paintCanvas():
     startPainting()
 
     # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
-    while(isAvailable.keys() and (colorIndex < allColors.shape[0])):
+    while(uncoloredBoundaryRegion.keys() and (colorIndex < allColors.shape[0])):
         continuePainting()
 
 
@@ -98,7 +103,7 @@ def startPainting():
 
     # Global Access
     global colorIndex
-    global isAvailable
+    global uncoloredBoundaryRegion
     global workingCanvas
     global coloredCount
 
@@ -110,9 +115,9 @@ def startPainting():
     workingCanvas[startPoint[0], startPoint[1]] = targetColor
     colorIndex += 1
 
-    # add its neigbors to isAvailable
+    # add its neigbors to uncoloredBoundaryRegion
     for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
-        isAvailable.update({neighbor.data.tobytes(): neighbor})
+        uncoloredBoundaryRegion.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
     coloredCount = 10
@@ -124,12 +129,12 @@ def continuePainting():
 
     # Global Access
     global colorIndex
-    global isAvailable
+    global uncoloredBoundaryRegion
     global workingCanvas
     global coloredCount
 
     # Setup
-    availableCount = len(isAvailable.keys())
+    availableCount = len(uncoloredBoundaryRegion.keys())
 
     # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
     if ((availableCount > MIN_MULTI_WORKLOAD) and USE_MULTIPROCESSING):
@@ -191,7 +196,7 @@ def getBestPositionForColor(requestedColor):
     minDistance = sys.maxsize
 
     # for every available position in the boundry, perform the check, keep the best position:
-    for available in isAvailable.values():
+    for available in uncoloredBoundaryRegion.values():
 
         # consider the available location with the target color
         check = canvasTools.considerPixelAt(
@@ -211,7 +216,7 @@ def paintToCanvas(requestedColor, requestedCoord):
     # Global Access
     global collisionCount
     global coloredCount
-    global isAvailable
+    global uncoloredBoundaryRegion
     global workingCanvas
 
     # Setup
@@ -219,7 +224,7 @@ def paintToCanvas(requestedColor, requestedCoord):
     requestedCoordY = requestedCoord[1]
 
     # double check the the pixel is available
-    currentlyAvailable = isAvailable.get(
+    currentlyAvailable = uncoloredBoundaryRegion.get(
         requestedCoord.tostring(), INVALID_COORD)
     availabilityCheck = not numpy.array_equal(
         currentlyAvailable, INVALID_COORD)
@@ -233,13 +238,14 @@ def paintToCanvas(requestedColor, requestedCoord):
             # the best position for requestedColor has been found color it
             workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
 
-            # remove that position from isAvailable and increment the count
-            isAvailable.pop(requestedCoord.tostring())
+            # remove that position from uncoloredBoundaryRegion and increment the count
+            uncoloredBoundaryRegion.pop(requestedCoord.tostring())
             coloredCount += 1
 
-            # each valid neighbor position should be added to isAvailable
+            # each valid neighbor position should be added to uncoloredBoundaryRegion
             for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
-                isAvailable.update({neighbor.data.tobytes(): neighbor})
+                uncoloredBoundaryRegion.update(
+                    {neighbor.data.tobytes(): neighbor})
 
         # collision
         else:
@@ -281,7 +287,7 @@ def printCurrentCanvas(finalize=False):
         # Info Print
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-            coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
+            coloredCount, len(uncoloredBoundaryRegion), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
 
 
 if __name__ == '__main__':
