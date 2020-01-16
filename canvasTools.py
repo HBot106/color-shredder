@@ -3,9 +3,6 @@ import colorTools
 import sys
 import numpy
 
-UNCOLORED = 1
-COLORED = 2
-
 # BLACK reference
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
@@ -26,47 +23,24 @@ def toRawOutput(canvas):
 # # In other words it considers a location by calculating the euclidian color diiference between each of
 # # the location's neigbors and the target color to be placed. It then gives back either the min of
 # # these 8 values or the average of them.
-def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
+def considerPixelAt(canvas, targetCoordinates, targetColor, useAverage):
 
     # Setup
     index = 0
-    width = canvas.shape[0]
-    height = canvas.shape[1]
-    hasValidNeighbor = False
     neighborDifferences = numpy.zeros(8, numpy.uint32)
 
-    # Get neighbors, Loop over the 3x3 grid surrounding the location being considered
-    for i in range(3):
-        for j in range(3):
+    validNeighbors = removeNonColoredNeighbors(
+        getNeighbors(canvas, targetCoordinates), canvas)
 
-            # this pixel is the location being considered;
-            # it is not a neigbor, go to the next one
-            if (i == 1 and j == 1):
-                continue
-
-            # calculate the neigbor's coordinates
-            neighborX = coordX - 1 + i
-            neighborY = coordY - 1 + j
-
-            # neighbor must be in the canvas
-            neighborIsInCanvas = ((0 <= neighborX < width)
-                                  and (0 <= neighborY < height))
-            if (neighborIsInCanvas):
-
-                # neighbor must not be BLACK
-                neighborIsBlack = numpy.array_equal(
-                    canvas[neighborX, neighborY], BLACK)
-                if not (neighborIsBlack):
-
-                    # get colDiff between the neighbor and target colors, add it to the list
-                    neigborColor = canvas[neighborX, neighborY]
-                    neighborDifferences[index] = colorTools.getColorDiff(
-                        targetColor, neigborColor)
-                    hasValidNeighbor = True
-                    index += 1
+    for neighbor in validNeighbors:
+        # get colDiff between the neighbor and target colors, add it to the list
+        neigborColor = canvas[neighbor[0], neighbor[1]]
+        neighborDifferences[index] = colorTools.getColorDiff(
+            targetColor, neigborColor)
+        index += 1
 
     # check if the considered pixel has at least one valid neighbor
-    if (hasValidNeighbor):
+    if (index):
 
         # either mean or min
         if (useAverage):
@@ -80,7 +54,8 @@ def considerPixelAt(canvas, coordX, coordY, targetColor, useAverage):
 
 
 # Gives all valid locations surrounding a given location
-def getNeighbors(canvas, coordX, coordY):
+# A location is invalid only if it is outside the given canvas bonuds
+def getNeighbors(canvas, targetCoordinates):
 
     # Setup
     index = 0
@@ -96,7 +71,8 @@ def getNeighbors(canvas, coordX, coordY):
                 continue
 
             # calculate the neigbor's coordinates
-            neighbor = numpy.array([(coordX - 1 + i), (coordY - 1 + j)], numpy.uint32)
+            neighbor = numpy.array(
+                [(targetCoordinates[0] - 1 + i), (targetCoordinates[1] - 1 + j)], numpy.uint32)
 
             # neighbor must be in the canvas
             neighborIsInCanvas = ((0 <= neighbor[0] < canvas.shape[0])
@@ -104,38 +80,58 @@ def getNeighbors(canvas, coordX, coordY):
             if (neighborIsInCanvas):
                 neighbors[index] = neighbor
                 index += 1
+
+    # if there are any valid, neighbors return them
     if (index):
-        return neighbors[]
-
-
-# Of the 8 neighbors, filter out those not matching a given filter
-index = 0
-for neighbor in neighbors:
-
-    # is the neighbor BLACK
-    neighborIsBlack = numpy.array_equal(
-            canvas[neighborX, neighborY], BLACK)
-
-    # FILTER: neighbors must be BLACK
-    if (condition == UNCOLORED):
-        if (neighborIsBlack):
-            # add to the list of valid neighbors
-            requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
-            index += 1
-            hasValidNeighbor = True
-
-    # FILTER: neighbors must NOT be BLACK
-    elif (condition=COLORED):
-
-        if not (neighborIsBlack):
-            # add to the list of valid neighbors
-            requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
-            index += 1
-            hasValidNeighbor = True
-
-    # FILTER: None/Other
+        return neighbors[0:index]
     else:
-        # add all to the list of valid neighbors
-            requestedNeigbors[index] = numpy.array([neighbor, numpy.uint32)
+        return numpy.array([])
+
+
+# filters out colored locations from a given neighbor list
+# i.e. neighbor color == BLACK
+def removeColoredNeighbors(neighbors, canvas):
+
+    # Setup
+    index = 0
+    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+
+    # KEEP only NEIGHBORS that are NOT COLORED (color equal BLACK)
+    for neighbor in neighbors:
+
+        if (isNeighborBlack(neighbor, canvas)):
+            filteredNeighbors[index] = neighbor
             index += 1
-            hasValidNeighbor = True
+
+    # return the filtered neighbors or an empty list
+    if (index):
+        return filteredNeighbors[0:index]
+    else:
+        return numpy.array([])
+
+
+# filters out non-colored locations from a given neighbor list
+# i.e. neighbor color =/= BLACK
+def removeNonColoredNeighbors(neighbors, canvas):
+
+    # Setup
+    index = 0
+    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+
+    # Keep only NEIGHBORS that are COLORED (color not equal BLACK)
+    for neighbor in neighbors:
+
+        if not (isNeighborBlack(neighbor, canvas)):
+            filteredNeighbors[index] = neighbor
+            index += 1
+
+    # return the filtered neighbors or an empty list
+    if (index):
+        return filteredNeighbors[0:index]
+    else:
+        return numpy.array([])
+
+
+# neighbor filter helper
+def isNeighborBlack(neighbor, canvas):
+    return numpy.array_equal(canvas[neighbor[0], neighbor[1]], BLACK)

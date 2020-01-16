@@ -10,6 +10,7 @@ import time
 import colorTools
 import canvasTools
 
+
 # =============================================================================
 # MACROS
 # =============================================================================
@@ -26,7 +27,7 @@ MIN_MULTI_WORKLOAD = 200
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
-COLOR_BIT_DEPTH = 8
+COLOR_BIT_DEPTH = 5
 CANVAS_HEIGHT = 100
 CANVAS_WIDTH = 100
 START_X = 32
@@ -102,13 +103,16 @@ def startPainting():
     global workingCanvas
     global coloredCount
 
-    # draw the first color at the starting pixel
+    # Setup
+    startPoint = numpy.array([START_X, START_Y], numpy.uint32)
     targetColor = allColors[colorIndex]
-    workingCanvas[START_X, START_Y] = targetColor
+
+    # draw the first color at the starting pixel
+    workingCanvas[startPoint[0], startPoint[1]] = targetColor
     colorIndex += 1
 
     # add its neigbors to isAvailable
-    for neighbor in canvasTools.getValidNeighbors(workingCanvas, START_X, START_Y):
+    for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
         isAvailable.update({neighbor.data.tobytes(): neighbor})
 
     # finish first pixel
@@ -192,7 +196,7 @@ def getBestPositionForColor(requestedColor):
 
         # consider the available location with the target color
         check = canvasTools.considerPixelAt(
-            workingCanvas, available[0], available[1], requestedColor, USE_AVERAGE)
+            workingCanvas, available, requestedColor, USE_AVERAGE)
 
         # if it is the best so far save the value and its location
         if (check < minDistance):
@@ -235,7 +239,7 @@ def paintToCanvas(requestedColor, requestedCoord):
             coloredCount += 1
 
             # each valid neighbor position should be added to isAvailable
-            for neighbor in canvasTools.getValidNeighbors(workingCanvas, requestedCoordX, requestedCoordY):
+            for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
                 isAvailable.update({neighbor.data.tobytes(): neighbor})
 
         # collision
