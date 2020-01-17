@@ -24,6 +24,6 @@ canvas = dict(
     COLOR_BIT_DEPTH = 5,
     CANVAS_WIDTH = 64,
     CANVAS_HEIGHT = 64,
-    START_X = 0,
-    START_Y = 0
+    START_X = 32,
+    START_Y = 32
 )

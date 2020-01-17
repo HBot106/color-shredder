@@ -1,4 +1,4 @@
-import png
+import png as pypng
 import numpy
 from rtree import index as rTree
 
@@ -41,8 +41,8 @@ INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
 # position in and the list of all colors to be placed
 colorIndex = 0
-colorCount = ((2**COLOR_BIT_DEPTH)**3)
-allColors = numpy.zeros([colorCount, 3], numpy.uint32)
+NUMBER_OF_COLORS = ((2**COLOR_BIT_DEPTH)**3)
+allColors = numpy.zeros([NUMBER_OF_COLORS, 3], numpy.uint32)
 
 # used for ongoing speed calculation
 lastPrintTime = time.time()
@@ -51,21 +51,21 @@ lastPrintTime = time.time()
 collisionCount = 0
 coloredCount = 0
 
-# dictionary used for lookup of available locations
+# legacy dictionary used for lookup of available locations
 uncoloredBoundaryRegion = {}
 
-# New R-Tree data structure testing
+# New R-Tree data structure testing for lookup of available locations
 rTreeProperties = rTree.Property()
-rTreeProperties.storage=rTree.RT_Memory
-rTreeProperties.dimension=3
-rTreeProperties.variant=rTree.RT_Star
-coloredBoundaryRegion = rTree.Index(properties=rTreeProperties)
+rTreeProperties.storage = rTree.RT_Memory
+rTreeProperties.dimension = 3
+rTreeProperties.variant = rTree.RT_Star
+uncoloredBoundaryRegion_rStarTree = rTree.Index(properties=rTreeProperties)
 
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
 # writes data arrays as PNG image files
-pngWriter = png.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
+pngWriter = pypng.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
 
 # =============================================================================
 
@@ -97,7 +97,7 @@ def paintCanvas():
     startPainting()
 
     # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
-    while(uncoloredBoundaryRegion.keys() and (colorIndex < allColors.shape[0])):
+    while(uncoloredBoundaryRegion_rStarTree.properties.get_index_capacity() and (colorIndex < NUMBER_OF_COLORS)):
         continuePainting()
 
 
@@ -106,7 +106,7 @@ def startPainting():
 
     # Global Access
     global colorIndex
-    global uncoloredBoundaryRegion
+    global uncoloredBoundaryRegion_rStarTree
     global workingCanvas
     global coloredCount
 
@@ -120,7 +120,9 @@ def startPainting():
 
     # add its neigbors to uncolored Boundary Region
     for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
-        uncoloredBoundaryRegion.update({neighbor.data.tobytes(): neighbor})
+        averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
+        uncoloredBoundaryRegion_rStarTree.insert(
+            colorIndex, (averageColor[0], averageColor[0], averageColor[1], averageColor[1], averageColor[2], averageColor[2]), neighbor)
 
     # finish first pixel
     coloredCount = 10
@@ -132,12 +134,12 @@ def continuePainting():
 
     # Global Access
     global colorIndex
-    global uncoloredBoundaryRegion
+    global uncoloredBoundaryRegion_rStarTree
     global workingCanvas
     global coloredCount
 
     # Setup
-    availableCount = len(uncoloredBoundaryRegion.keys())
+    availableCount = uncoloredBoundaryRegion_rStarTree.properties.get_index_capacity()
 
     # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
     if ((availableCount > MIN_MULTI_WORKLOAD) and USE_MULTIPROCESSING):
@@ -194,23 +196,10 @@ def continuePainting():
 # # is where we will place the target color
 def getBestPositionForColor(requestedColor):
 
-    # reset minimums
-    MinCoord = INVALID_COORD
-    minDistance = sys.maxsize
+    bestLocation = uncoloredBoundaryRegion_rStarTree.nearest(
+        (requestedColor[0], requestedColor[0], requestedColor[1], requestedColor[1], requestedColor[2], requestedColor[2]), 1, True)
 
-    # for every available position in the boundry, perform the check, keep the best position:
-    for available in uncoloredBoundaryRegion.values():
-
-        # consider the available location with the target color
-        check = canvasTools.considerPixelAt(
-            workingCanvas, available, requestedColor, MODE)
-
-        # if it is the best so far save the value and its location
-        if (check < minDistance):
-            minDistance = check
-            MinCoord = numpy.array(available, numpy.uint32)
-
-    return [requestedColor, MinCoord]
+    return [requestedColor, bestLocation]
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -219,7 +208,7 @@ def paintToCanvas(requestedColor, requestedCoord):
     # Global Access
     global collisionCount
     global coloredCount
-    global uncoloredBoundaryRegion
+    global uncoloredBoundaryRegion_rStarTree
     global workingCanvas
 
     # Setup
@@ -227,28 +216,21 @@ def paintToCanvas(requestedColor, requestedCoord):
     requestedCoordY = requestedCoord[1]
 
     # double check the the pixel is available
-    currentlyAvailable = uncoloredBoundaryRegion.get(
-        requestedCoord.tostring(), INVALID_COORD)
-    availabilityCheck = not numpy.array_equal(
-        currentlyAvailable, INVALID_COORD)
-    if (availabilityCheck):
+    if (canvasTools.isLocationBlack(requestedCoord, workingCanvas)):
 
-        # double check the the pixel is BLACK
-        isBlack = numpy.array_equal(
-            workingCanvas[currentlyAvailable[0], currentlyAvailable[1]], BLACK)
-        if (isBlack):
+        
 
-            # the best position for requestedColor has been found color it
-            workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
+        # the best position for requestedColor has been found color it
+        workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
 
-            # remove that position from uncolored Boundary Region and increment the count
-            uncoloredBoundaryRegion.pop(requestedCoord.tostring())
-            coloredCount += 1
+        # remove that position from uncolored Boundary Region and increment the count
+        uncoloredBoundaryRegion_rStarTree.pop(requestedCoord.tostring())
+        coloredCount += 1
 
-            # each valid neighbor position should be added to uncolored Boundary Region
-            for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
-                uncoloredBoundaryRegion.update(
-                    {neighbor.data.tobytes(): neighbor})
+        # each valid neighbor position should be added to uncolored Boundary Region
+        for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
+            uncoloredBoundaryRegion_rStarTree.update(
+                {neighbor.data.tobytes(): neighbor})
 
         # collision
         else:
@@ -290,7 +272,7 @@ def printCurrentCanvas(finalize=False):
         # Info Print
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-            coloredCount, len(uncoloredBoundaryRegion), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
+            coloredCount, len(uncoloredBoundaryRegion_rStarTree), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
 
 
 if __name__ == '__main__':

@@ -166,7 +166,7 @@ def removeColoredNeighbors(neighbors, canvas):
     # KEEP only NEIGHBORS that are NOT COLORED (color equal BLACK)
     for neighbor in neighbors:
 
-        if (isNeighborBlack(neighbor, canvas)):
+        if (isLocationBlack(neighbor, canvas)):
             filteredNeighbors[index] = neighbor
             index += 1
 
@@ -188,7 +188,7 @@ def removeNonColoredNeighbors(neighbors, canvas):
     # Keep only NEIGHBORS that are COLORED (color not equal BLACK)
     for neighbor in neighbors:
 
-        if not (isNeighborBlack(neighbor, canvas)):
+        if not (isLocationBlack(neighbor, canvas)):
             filteredNeighbors[index] = neighbor
             index += 1
 
@@ -200,5 +200,33 @@ def removeNonColoredNeighbors(neighbors, canvas):
 
 
 # neighbor filter helper
-def isNeighborBlack(neighbor, canvas):
-    return numpy.array_equal(canvas[neighbor[0], neighbor[1]], BLACK)
+def isLocationBlack(location, canvas):
+    return numpy.array_equal(canvas[location[0], location[1]], BLACK)
+
+
+# get the average color of a given location
+def getAverageColor(target, canvas):
+    # Setup
+    index = 0
+    neigborhoodColor = BLACK
+
+    # Get neighbors
+    # Don't consider BLACK pixels
+    validNeighbors = removeNonColoredNeighbors(
+        getNeighbors(canvas, target), canvas)
+
+    # sum up the color values from each neighbor
+    for neighbor in validNeighbors:
+        neigborhoodColor = numpy.add(
+            canvas[neighbor[0], neighbor[1]], neigborhoodColor)
+        index += 1
+
+    # check if the considered pixel has at least one valid neighbor
+    if (index):
+
+        # divide through by the index to average the color
+        indexArray = numpy.array([index, index, index], numpy.uint32)
+        avgColor = numpy.divide(neigborhoodColor, indexArray)
+        return avgColor
+    else:
+        return BLACK
