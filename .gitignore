@@ -1,1 +1,3 @@
 painting.png
+__pycache__/*
+config.py
