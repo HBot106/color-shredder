@@ -2,6 +2,9 @@ import concurrent.futures
 import time
 import numpy
 
+# BLACK reference
+BLACK = numpy.array([0, 0, 0], numpy.uint32)
+
 
 # get the squared difference to another color
 def getColorDiff(targetColor_A, targetColor_B):
@@ -122,11 +125,25 @@ def generateColors_worker(r, valuesPerChannel):
         for b in range(valuesPerChannel):
             # insert the color in its place
             workingColor = numpy.array([
-                    int((r / valuesPerChannel) * 255),
-                    int((g / valuesPerChannel) * 255),
-                    int((b / valuesPerChannel) * 255)], numpy.uint32)
+                int((r / valuesPerChannel) * 255),
+                int((g / valuesPerChannel) * 255),
+                int((b / valuesPerChannel) * 255)], numpy.uint32)
             workerColors[index] = workingColor
             index += 1
 
     # return all colors with the given red value
     return workerColors
+
+# turn a given color into its bounding box representation
+# numpy[r,g,b] -> (r,r,g,g,b,b)
+
+
+def getColorBoundingBox(givenColor):
+    if (givenColor.shape == 3):
+        return (givenColor[0], givenColor[0], givenColor[1], givenColor[1], givenColor[2], givenColor[2])
+    else:
+        print("getColorBoundingBox given bad value")
+        print("given:")
+        print(givenColor)
+        exit()
+        return (BLACK[0], BLACK[0], BLACK[1], BLACK[1], BLACK[2], BLACK[2])
