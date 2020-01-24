@@ -170,6 +170,29 @@ def removeColoredNeighbors(neighbors, canvas):
         return numpy.array([])
 
 
+def getNotPrevAvailNeighbors(targetCoordinates, canvas):
+
+    # Setup
+    index = 0
+    prevAvail = False
+    NotPrevAvailNeighbors = numpy.zeros([8, 2], numpy.uint32)
+
+    consideredNeighbors = removeColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
+    for neighbor in consideredNeighbors:
+        prevAvail = False
+        for neighborOfNeighbor in getNeighbors(canvas, neighbor):
+            if (not isLocationBlack(neighborOfNeighbor, canvas)):
+                prevAvail = True
+
+        if (not prevAvail):    
+            NotPrevAvailNeighbors[index] = neighbor
+            index += 1
+
+    if (index):
+        return NotPrevAvailNeighbors[0:index]
+    else:
+        return numpy.array([])
+
 # filters out non-colored locations from a given neighbor list
 # i.e. neighbor color =/= BLACK
 def removeNonColoredNeighbors(neighbors, canvas):
@@ -218,6 +241,11 @@ def getAverageColor(target, canvas):
         # divide through by the index to average the color
         indexArray = numpy.array([index, index, index], numpy.uint32)
         avgColor = numpy.divide(neigborhoodColor, indexArray)
-        return avgColor
+        roundedAvg = numpy.array(avgColor, numpy.uint32)
+
+        return roundedAvg
     else:
         return BLACK
+
+def getNewBoundaryNeighbors(targetCoord, canvas):
+    return removeColoredNeighbors(getNeighbors(canvas, targetCoord), canvas)
