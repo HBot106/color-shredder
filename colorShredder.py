@@ -124,9 +124,8 @@ def startPainting():
     for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
         averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
 
-        print(neighbor)
-        # insert(id(unused_flag), boundingBox(color), object(location))
-        uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), neighbor)
+        # insert(id(unused_flag), boundingBox(color), object(location, neighborhoodColor))
+        uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
 
     # finish first pixel
     coloredCount = 1
@@ -190,7 +189,7 @@ def continuePainting():
         resultCoord = bestResult[1]
 
         # attempt to paint the color at the corresponding location
-        paintToCanvas(resultColor, resultCoord)
+        paintToCanvas(targetColor, resultCoord)
 
 
 # Gives the best location among all avilable for the requested color; Also returns the color itself
@@ -199,13 +198,13 @@ def continuePainting():
 # # is where we will place the target color
 def getBestPositionForColor(requestedColor):
 
-    bestLocations = list(uncoloredBoundaryRegion_rStarTree.nearest(
+    bestLocationColorPairs = list(uncoloredBoundaryRegion_rStarTree.nearest(
         colorTools.getColorBoundingBox(requestedColor), 3, True))
-    return [requestedColor, bestLocations]
+    return [requestedColor, bestLocationColorPairs]
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
-def paintToCanvas(requestedColor, requestedCoords):
+def paintToCanvas(requestedColor, bestLocationColorPairs):
 
     # Global Access
     global collisionCount
@@ -213,29 +212,30 @@ def paintToCanvas(requestedColor, requestedCoords):
     global uncoloredBoundaryRegion_rStarTree
     global workingCanvas
 
-    for location in requestedCoords:
+    for locationColorPairs in bestLocationColorPairs:
         # Setup
-        requestedCoordX = location.object[0]
-        requestedCoordY = location.object[1]
+        requestedCoordX = locationColorPairs.object[0][0]
+        requestedCoordY = locationColorPairs.object[0][1]
 
         # double check the the pixel is available
-        if (canvasTools.isLocationBlack(location.object, workingCanvas)):
+        if (canvasTools.isLocationBlack(locationColorPairs.object[0], workingCanvas)):
 
             # the best position for requestedColor has been found color it
             workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
 
             # remove that position from uncolored Boundary Region and increment the count
             # delete(id(unsued_flag), boundingBox(color))
-            uncoloredBoundaryRegion_rStarTree.delete(0, colorTools.getColorBoundingBox(requestedColor))
+            uncoloredBoundaryRegion_rStarTree.delete(0, colorTools.getColorBoundingBox(locationColorPairs.object[1]))
+            
             coloredCount += 1
 
             # each valid neighbor position should be added to uncolored Boundary Region
-            for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, location.object), workingCanvas):
+            for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, locationColorPairs.object[0]), workingCanvas):
 
                 # insert(id(unused_flag), boundingBox(color), object(location))
                 averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
                 print(neighbor)
-                uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), neighbor)
+                uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
 
             # print progress
             if (coloredCount % PRINT_RATE == 0):
