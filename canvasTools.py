@@ -18,101 +18,16 @@ def toRawOutput(canvas):
     return rawOutput
 
 
-# Consider the target location using the given selection MODE
-def considerPixelAt(canvas, targetCoordinates, targetColor, MODE):
-    if (MODE == 0):
-        return minimumSelection(canvas, targetCoordinates, targetColor)
-    elif (MODE == 1):
-        return averageSelection(canvas, targetCoordinates, targetColor)
-    elif (MODE == 2):
-        return fastAverageSelection(canvas, targetCoordinates, targetColor)
-    else:
-        return fastAverageSelection(canvas, targetCoordinates, targetColor)
-
-
-# Gets the MINIMUM value of all the euclidianDistances beteen (valid neighbors of the target location) and (the target color)
-def minimumSelection(canvas, targetCoordinates, targetColor):
-
-    # Setup
-    index = 0
-    neighborDifferences = numpy.zeros(8, numpy.uint32)
-
-    # Get neighbors
-    # Don't consider BLACK pixels
-    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
-
-    for neighbor in consideredNeighbors:
-        # get colDiff between the neighbor and target colors, add it to the list
-        neigborColor = canvas[neighbor[0], neighbor[1]]
-        euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
-        neighborDifferences[index] = euclidianDistance
-        index += 1
-
-    # check if the considered pixel has at least one valid neighbor
-    if (index):
-        # return the minimum difference of all the neighbors
-        return numpy.min(neighborDifferences[0:index])
-
-    # if it has no valid neighbors, maximise its colorDiff
-    else:
-        return sys.maxsize
-
-
-# Gets the AVERAGE value of all the euclidianDistances beteen (valid neighbors of the target location) and (the target color)
-def averageSelection(canvas, targetCoordinates, targetColor):
-
-    # Setup
-    index = 0
-    neighborDifferences = numpy.zeros(8, numpy.uint32)
-
-    # Get neighbors
-    # Don't consider BLACK pixels
-    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
-
-    for neighbor in consideredNeighbors:
-        # get colDiff between the neighbor and target colors, add it to the list
-        neigborColor = canvas[neighbor[0], neighbor[1]]
-        euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
-        neighborDifferences[index] = euclidianDistance
-        index += 1
-
-    # check if the considered pixel has at least one valid neighbor
-    if (index):
-
-        return numpy.mean(neighborDifferences[0:index])
-
-    # if it has no valid neighbors, maximise its colorDiff
-    else:
-        return sys.maxsize
-
-
-# Gets the euclidianDistance beteen (the average color of valid neighbors of the target location) and (the target color)
-def fastAverageSelection(canvas, targetCoordinates, targetColor):
-
-    # Setup
-    index = 0
-    neigborhoodColor = BLACK
-
-    # Get neighbors
-    # Don't consider BLACK pixels
-    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
-
-    # sum up the color values from each neighbor
-    for neighbor in consideredNeighbors:
-        neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
-        index += 1
-
-    # check if the considered pixel has at least one valid neighbor
-    if (index):
-
-        # divide through by the index to average the color
-        indexArray = numpy.array([index, index, index], numpy.uint32)
-        avgColor = numpy.divide(neigborhoodColor, indexArray)
-        return colorTools.getColorDiff(avgColor, targetColor)
-
-    # if it has no valid neighbors, maximise its colorDiff
-    else:
-        return sys.maxsize
+def getNeighborhoodColor(location, canvas, MODE):
+    # if (MODE == 0):
+    #     return getMinimumColorDistance(targetCoordinates, canvas)
+    # elif (MODE == 1):
+    #     return getAverageColorDistance(targetCoordinates, canvas)
+    # elif (MODE == 2):
+    #     return getAverageColor(targetCoordinates, canvas)
+    # else:
+    #     return getAverageColor(targetCoordinates, canvas)
+    return getAverageColor(location, canvas)
 
 
 # Gives all valid locations surrounding a given location
@@ -184,7 +99,7 @@ def getNotPrevAvailNeighbors(targetCoordinates, canvas):
             if (not isLocationBlack(neighborOfNeighbor, canvas)):
                 prevAvail = True
 
-        if (not prevAvail):    
+        if (not prevAvail):
             NotPrevAvailNeighbors[index] = neighbor
             index += 1
 
@@ -195,6 +110,8 @@ def getNotPrevAvailNeighbors(targetCoordinates, canvas):
 
 # filters out non-colored locations from a given neighbor list
 # i.e. neighbor color =/= BLACK
+
+
 def removeNonColoredNeighbors(neighbors, canvas):
 
     # Setup
@@ -246,6 +163,7 @@ def getAverageColor(target, canvas):
         return roundedAvg
     else:
         return BLACK
+
 
 def getNewBoundaryNeighbors(targetCoord, canvas):
     return removeColoredNeighbors(getNeighbors(canvas, targetCoord), canvas)

@@ -224,7 +224,7 @@ def trackNeighbor(location):
         availabilityIndex[location[0], location[1], 0] = 0
 
     # get the newest avgColor
-    neighborhoodColor = canvasTools.getAverageColor(location, workingCanvas)
+    neighborhoodColor = canvasTools.getNeighborhoodColor(location, workingCanvas, MODE)
 
     # update the location in the availability index
     locationAvailability = numpy.array(
