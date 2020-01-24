@@ -14,8 +14,7 @@ def toRawOutput(canvas):
     simpleCanvas = numpy.array(canvas, numpy.uint8)
     transposedCanvas = numpy.transpose(simpleCanvas, (1, 0, 2))
     flippedColors = numpy.flip(transposedCanvas, 2)
-    rawOutput = numpy.reshape(
-        flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
+    rawOutput = numpy.reshape(flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
     return rawOutput
 
 
@@ -40,8 +39,7 @@ def minimumSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(
-        getNeighbors(canvas, targetCoordinates), canvas)
+    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
     for neighbor in validNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
@@ -69,8 +67,7 @@ def averageSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(
-        getNeighbors(canvas, targetCoordinates), canvas)
+    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
     for neighbor in validNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
@@ -98,13 +95,11 @@ def fastAverageSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(
-        getNeighbors(canvas, targetCoordinates), canvas)
+    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
     # sum up the color values from each neighbor
     for neighbor in validNeighbors:
-        neigborhoodColor = numpy.add(
-            canvas[neighbor[0], neighbor[1]], neigborhoodColor)
+        neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
         index += 1
 
     # check if the considered pixel has at least one valid neighbor
@@ -138,12 +133,10 @@ def getNeighbors(canvas, targetCoordinates):
                 continue
 
             # calculate the neigbor's coordinates
-            neighbor = numpy.array(
-                [(targetCoordinates[0] - 1 + i), (targetCoordinates[1] - 1 + j)], numpy.uint32)
+            neighbor = numpy.array([(targetCoordinates[0] - 1 + i), (targetCoordinates[1] - 1 + j)], numpy.uint32)
 
             # neighbor must be in the canvas
-            neighborIsInCanvas = ((0 <= neighbor[0] < canvas.shape[0])
-                                  and (0 <= neighbor[1] < canvas.shape[1]))
+            neighborIsInCanvas = ((0 <= neighbor[0] < canvas.shape[0]) and (0 <= neighbor[1] < canvas.shape[1]))
             if (neighborIsInCanvas):
                 neighbors[index] = neighbor
                 index += 1
@@ -212,13 +205,11 @@ def getAverageColor(target, canvas):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(
-        getNeighbors(canvas, target), canvas)
+    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, target), canvas)
 
     # sum up the color values from each neighbor
     for neighbor in validNeighbors:
-        neigborhoodColor = numpy.add(
-            canvas[neighbor[0], neighbor[1]], neigborhoodColor)
+        neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
         index += 1
 
     # check if the considered pixel has at least one valid neighbor

@@ -34,18 +34,14 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
 
     # choose single or multi processing
     if (useMulti):
-        allColors = generateColorsMulti(
-            COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
+        allColors = generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
     else:
-        allColors = generateColorsSingle(
-            COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
+        allColors = generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
 
     # Info Print
     elapsedTime = time.time() - beginTime
-    print("Generating colors... {:3.2f}".format(
-        100) + '%' + " complete.", end='\n')
-    print("Generated {} colors in {:3.2f} seconds.".format(
-        totalColors, elapsedTime))
+    print("Generating colors... {:3.2f}".format(100) + '%' + " complete.", end='\n')
+    print("Generated {} colors in {:3.2f} seconds.".format(totalColors, elapsedTime))
 
     # Suffle the color list, so it is in a random order
     if (useShuffle):
@@ -53,8 +49,7 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
         print("Shuffling colors...", end='\r')
         numpy.random.shuffle(allColors)
         elapsedTime = time.time() - beginTime
-        print("Shuffled {} colors in {:3.2f} seconds.".format(
-            totalColors, elapsedTime))
+        print("Shuffled {} colors in {:3.2f} seconds.".format(totalColors, elapsedTime))
 
     return allColors
 
@@ -80,8 +75,7 @@ def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
                 index += 1
 
         # Info Print
-        print("Generating colors... {:3.2f}".format(
-            100*r/valuesPerChannel) + '%' + " complete.", end='\r')
+        print("Generating colors... {:3.2f}".format(100*r/valuesPerChannel) + '%' + " complete.", end='\r')
 
     # generation completed
     return allColors
@@ -95,18 +89,15 @@ def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
 
     # using multiprocessing kick off a worker for each red value in range of red values
     generator = concurrent.futures.ProcessPoolExecutor()
-    constantReds = [generator.submit(
-        generateColors_worker, red, valuesPerChannel) for red in range(valuesPerChannel)]
+    constantReds = [generator.submit(generateColors_worker, red, valuesPerChannel) for red in range(valuesPerChannel)]
 
     # for each worker as it completes, insert its results into the array
     # the order that this happens does not matter as the array will be shuffled anywasys
     index = 0
     for constantRed in concurrent.futures.as_completed(constantReds):
-        allColors[index * (valuesPerChannel**2): (index + 1)
-                  * (valuesPerChannel**2)] = constantRed.result()
+        allColors[index * (valuesPerChannel**2): (index + 1) * (valuesPerChannel**2)] = constantRed.result()
         index += 1
-        print("Generating colors... {:3.2f}".format(
-            100*index/valuesPerChannel) + '%' + " complete.", end='\r')
+        print("Generating colors... {:3.2f}".format(100*index/valuesPerChannel) + '%' + " complete.", end='\r')
 
     # generation completed
     return allColors
@@ -139,11 +130,11 @@ def generateColors_worker(r, valuesPerChannel):
 
 
 def getColorBoundingBox(givenColor):
-    if (givenColor.shape == 3):
-        return (givenColor[0], givenColor[0], givenColor[1], givenColor[1], givenColor[2], givenColor[2])
+    if (givenColor.size == 3):
+        return (givenColor[0], givenColor[1], givenColor[2], givenColor[0], givenColor[1], givenColor[2])
     else:
         print("getColorBoundingBox given bad value")
         print("given:")
         print(givenColor)
         exit()
-        return (BLACK[0], BLACK[0], BLACK[1], BLACK[1], BLACK[2], BLACK[2])
+        return (BLACK[0], BLACK[1], BLACK[2], BLACK[0], BLACK[1], BLACK[2])
