@@ -29,8 +29,7 @@ def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
 
     # Info Print
     beginTime = time.time()
-    print("Generating colors... {:3.2f}".format(
-        0) + '%' + " complete.", end='\r')
+    print("Generating colors... {:3.2f}".format(0) + '%' + " complete.", end='\r')
 
     # choose single or multi processing
     if (useMulti):
@@ -137,4 +136,3 @@ def getColorBoundingBox(givenColor):
         print("given:")
         print(givenColor)
         exit()
-        return (BLACK[0], BLACK[1], BLACK[2], BLACK[0], BLACK[1], BLACK[2])

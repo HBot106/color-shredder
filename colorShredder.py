@@ -55,9 +55,6 @@ lastPrintTime = time.time()
 collisionCount = 0
 coloredCount = 0
 
-# legacy dictionary used for lookup of available locations
-uncoloredBoundaryRegion = {}
-
 # New R-Tree data structure testing for lookup of available locations
 rTreeProperties = rTree.Property()
 rTreeProperties.storage = rTree.RT_Memory
@@ -98,7 +95,9 @@ def paintCanvas():
     # draw the first color at the starting pixel
     startPainting()
 
-    # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
+    # while 2 conditions, continue painting:
+    #   1) more un-colored boundry locations exist
+    #   2) there are more generated colors to be placed
     while(uncoloredBoundaryRegion_rStarTree.count([0, 0, 0, 256, 256, 256]) and (colorIndex < NUMBER_OF_COLORS)):
         continuePainting()
 
@@ -125,7 +124,8 @@ def startPainting():
         averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
 
         # insert(id(unused_flag), boundingBox(color), object(location, neighborhoodColor))
-        uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
+        uncoloredBoundaryRegion_rStarTree.insert(
+            0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
 
     # finish first pixel
     coloredCount = 1
@@ -226,7 +226,7 @@ def paintToCanvas(requestedColor, bestLocationColorPairs):
             # remove that position from uncolored Boundary Region and increment the count
             # delete(id(unsued_flag), boundingBox(color))
             uncoloredBoundaryRegion_rStarTree.delete(0, colorTools.getColorBoundingBox(locationColorPairs.object[1]))
-            
+
             coloredCount += 1
 
             # each valid neighbor position should be added to uncolored Boundary Region
@@ -235,7 +235,8 @@ def paintToCanvas(requestedColor, bestLocationColorPairs):
                 # insert(id(unused_flag), boundingBox(color), object(location))
                 averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
                 print(neighbor)
-                uncoloredBoundaryRegion_rStarTree.insert(0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
+                uncoloredBoundaryRegion_rStarTree.insert(
+                    0, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
 
             # print progress
             if (coloredCount % PRINT_RATE == 0):

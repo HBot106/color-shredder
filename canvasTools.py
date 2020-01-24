@@ -39,9 +39,9 @@ def minimumSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
+    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
-    for neighbor in validNeighbors:
+    for neighbor in consideredNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
         neigborColor = canvas[neighbor[0], neighbor[1]]
         euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
@@ -67,9 +67,9 @@ def averageSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
+    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
-    for neighbor in validNeighbors:
+    for neighbor in consideredNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
         neigborColor = canvas[neighbor[0], neighbor[1]]
         euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
@@ -95,10 +95,10 @@ def fastAverageSelection(canvas, targetCoordinates, targetColor):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
+    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
 
     # sum up the color values from each neighbor
-    for neighbor in validNeighbors:
+    for neighbor in consideredNeighbors:
         neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
         index += 1
 
@@ -205,10 +205,10 @@ def getAverageColor(target, canvas):
 
     # Get neighbors
     # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, target), canvas)
+    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, target), canvas)
 
     # sum up the color values from each neighbor
-    for neighbor in validNeighbors:
+    for neighbor in consideredNeighbors:
         neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
         index += 1
 
