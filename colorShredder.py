@@ -66,7 +66,7 @@ spatialColorIndex = rTree.Index(properties=indexProperties)
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
 # holds availability information for every location in the canvas in the following form:
-# [x][y][isInSpatialColorIndexBoolean, #ID, averageColor.R, averageColor.G, averageColor.B]
+# [x][y][isInSpatialColorIndexBoolean, #ID, neighborhoodColor.R, neighborhoodColor.G, neighborhoodColor.B]
 availabilityIndex = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 5], numpy.uint32)
 locationsMadeAvailCount = 0
 
@@ -128,19 +128,22 @@ def startPainting():
 
     # add its neigbors to uncolored Boundary Region
     for neighbor in canvasTools.getNewBoundaryNeighbors(startPoint, workingCanvas):
-        averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
+        
+        neighborhoodColor = canvasTools.getAverageColor(neighbor, workingCanvas)
 
         # add the neighbor to the availability index
         locationAvailability = numpy.array(
-            [1, locationsMadeAvailCount, averageColor[0], averageColor[1], averageColor[2]], numpy.uint32)
+            [1, locationsMadeAvailCount, neighborhoodColor[0], neighborhoodColor[1], neighborhoodColor[2]], numpy.uint32)
         availabilityIndex[neighbor[0]][neighbor[1]] = locationAvailability
+        # print("Flagged location: " + str(neighbor) + " with: " + str(locationAvailability))
         
-
         # add the neighbor to the spatialColorIndex
         # insert(id(unused_flag), boundingBox(color), object(location, neighborhoodColor))
         spatialColorIndex.insert(
-            locationsMadeAvailCount, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
+            locationsMadeAvailCount, colorTools.getColorBoundingBox(neighborhoodColor), [neighbor, neighborhoodColor])
         locationsMadeAvailCount += 1
+        # print("Added color: " + str(neighborhoodColor) + " with ID: " + str(locationsMadeAvailCount) + " and location: " + str(neighbor))
+        # print()
 
     # finish first pixel
     coloredCount = 1
@@ -245,8 +248,12 @@ def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
             # remove object from the spatialColorIndex
             spatialColorIndex.delete(locationID, neighborhoodColorBBox)
             coloredCount += 1
+            # print("Deleted color: " + str(neighborhoodColor) + " with ID: " + str(locationID) + " and location: " + str(requestedCoord))
+
             # flag the location as no longer being available
             availabilityIndex[requestedCoord[0], requestedCoord[1], 0] = 0
+            # print("Un-Flagged location: " + str(requestedCoord))
+            # print()
 
             # each valid neighbor position should be added to uncolored Boundary Region
             for neighbor in canvasTools.getNewBoundaryNeighbors(requestedCoord, workingCanvas):
@@ -254,23 +261,33 @@ def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
                 # if the neighbor is already in the spatialColorIndex, then it needs to be deleted
                 # otherwise there will be duplicate avialability with outdated neighborhood colors.
                 if (availabilityIndex[neighbor[0], neighbor[1], 0]):
+                    # print("removing duplicate")
                     neighborID = availabilityIndex[neighbor[0], neighbor[1], 1]
-                    neighborNeighborhoodColor = availabilityIndex[neighbor[0], neighbor[1], 1:4]
+                    neighborNeighborhoodColor = availabilityIndex[neighbor[0], neighbor[1], 2:5]
                     spatialColorIndex.delete(neighborID, colorTools.getColorBoundingBox(neighborNeighborhoodColor))
+                    # print("Deleted color: " + str(neighborNeighborhoodColor) + " with ID: " + str(neighborID) + " and location: " + str(neighbor))
+
+                    availabilityIndex[neighbor[0], neighbor[1], 0] = 0
+                    # print("Un-Flagged location: " + str(neighbor))
+                    # print()
+
 
                 # get the newest avgColor
-                averageColor = canvasTools.getAverageColor(neighbor, workingCanvas)
+                neighborhoodColor = canvasTools.getAverageColor(neighbor, workingCanvas)
 
                 # update the neighbor in the availability index
                 locationAvailability = numpy.array(
-                    [1, locationsMadeAvailCount, averageColor[0], averageColor[1], averageColor[2]], numpy.uint32)
+                    [1, locationsMadeAvailCount, neighborhoodColor[0], neighborhoodColor[1], neighborhoodColor[2]], numpy.uint32)
                 availabilityIndex[neighbor[0]][neighbor[1]] = locationAvailability
+                # print("Flagged location: " + str(neighbor) + " with: " + str(locationAvailability))
                 
                 # add the neighbor to the spatialColorIndex
                 # insert(id(unused_flag), boundingBox(color), object(location, neighborhoodColor))
                 spatialColorIndex.insert(
-                    locationsMadeAvailCount, colorTools.getColorBoundingBox(averageColor), [neighbor, averageColor])
+                    locationsMadeAvailCount, colorTools.getColorBoundingBox(neighborhoodColor), [neighbor, neighborhoodColor])
                 locationsMadeAvailCount += 1
+                # print("Added color: " + str(neighborhoodColor) + " with ID: " + str(locationsMadeAvailCount) + " and location: " + str(neighbor))
+                # print()
 
             # print progress
             if (coloredCount % PRINT_RATE == 0):
@@ -309,8 +326,10 @@ def printCurrentCanvas(finalize=False):
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             coloredCount, spatialColorIndex.count([0, 0, 0, 256, 256, 256]), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
-
-        time.sleep(1.0)
+        # print("######################################################################")
+        # print()
+        # print()
+        # time.sleep(1.0)
 
 
 if __name__ == '__main__':
