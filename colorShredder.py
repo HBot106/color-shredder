@@ -4,7 +4,6 @@ from rtree import index as rTree
 
 import os
 import sys
-import concurrent.futures
 import time
 
 import colorTools
@@ -60,6 +59,10 @@ indexProperties = rTree.Property()
 indexProperties.storage = rTree.RT_Memory
 indexProperties.dimension = 3
 indexProperties.variant = rTree.RT_Star
+indexProperties.near_minimum_overlap_factor = 32
+indexProperties.leaf_capacity = 32
+indexProperties.index_capacity = 32
+indexProperties.fill_factor = 0.5
 spatialColorIndex = rTree.Index(properties=indexProperties)
 
 # holds the current state of the canvas
@@ -140,9 +143,6 @@ def continuePainting():
 
     # Global Access
     global colorsTakenCount
-    global spatialColorIndex
-    global workingCanvas
-    global colorsPlacedCount
 
     # get the color to be placed
     targetColor = allColors[colorsTakenCount]
@@ -159,7 +159,7 @@ def continuePainting():
 def getBestPositionForColor(requestedColor):
 
     nearestSpatialColorIndexObjects = list(spatialColorIndex.nearest(
-        colorTools.getColorBoundingBox(requestedColor), 1, True))
+        colorTools.getColorBoundingBox(requestedColor), 1, objects='RAW'))
     return [requestedColor, nearestSpatialColorIndexObjects]
 
 
@@ -168,10 +168,6 @@ def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
 
     # Global Access
     global collisionCount
-    global colorsPlacedCount
-    global spatialColorIndex
-    global availabilityIndex
-    global locationsMadeAvailCount
     global workingCanvas
 
     # retains ability to process k potential nearest neighbots even tho only one is requested

@@ -19,14 +19,6 @@ def toRawOutput(canvas):
 
 
 def getNeighborhoodColor(location, canvas, MODE):
-    # if (MODE == 0):
-    #     return getMinimumColorDistance(targetCoordinates, canvas)
-    # elif (MODE == 1):
-    #     return getAverageColorDistance(targetCoordinates, canvas)
-    # elif (MODE == 2):
-    #     return getAverageColor(targetCoordinates, canvas)
-    # else:
-    #     return getAverageColor(targetCoordinates, canvas)
     return getAverageColor(location, canvas)
 
 
