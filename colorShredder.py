@@ -54,6 +54,9 @@ lastPrintTime = time.time()
 collisionCount = 0
 colorsPlacedCount = 0
 
+# holds the current state of the canvas
+workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
+
 # New R-Tree data structure testing for lookup of available locations
 indexProperties = rTree.Property()
 indexProperties.storage = rTree.RT_Memory
@@ -64,9 +67,6 @@ indexProperties.leaf_capacity = 32
 indexProperties.index_capacity = 32
 indexProperties.fill_factor = 0.5
 spatialColorIndex = rTree.Index(properties=indexProperties)
-
-# holds the current state of the canvas
-workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
 # holds availability information for every location in the canvas in the following form:
 # [x][y][isInSpatialColorIndexBoolean, #ID, neighborhoodColor.R, neighborhoodColor.G, neighborhoodColor.B]
