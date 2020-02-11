@@ -40,6 +40,7 @@ BLACK = numpy.array([0, 0, 0], numpy.uint32)
 INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
 MAX_BUFFER_SIZE = 1000
+K_NEIGHBORS = 10
 
 # =============================================================================
 # GLOBALS
@@ -160,18 +161,23 @@ def continuePainting():
     count_colors_taken += 1
 
     # find the best location for that color
-    bestResult = getBestPositionForColor(target_color)
-    resultCoord = bestResult[1]
+    best_result = getBestPositionForColor(target_color)
+    result_coordinate = best_result[1]
 
     # attempt to paint the color at the corresponding location
-    paintToCanvas(target_color, resultCoord)
+    paintToCanvas(target_color, result_coordinate)
 
 
 def getBestPositionForColor(requestedColor):
 
-    nearestSpatialColorIndexObjects = list(neighborhood_color_spatial_index.nearest(
-        colorTools.getColorBoundingBox(requestedColor), 1, objects='RAW'))
-    return [requestedColor, nearestSpatialColorIndexObjects]
+    best_position = INVALID_COORD
+
+    # if the spatial index is not empty
+    if (neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256])):
+        k_nearest_neighbors_list = list(neighborhood_color_spatial_index.nearest(colorTools.getColorBoundingBox(requestedColor), K_NEIGHBORS, objects='RAW'))
+        
+    
+    # return [requestedColor, nearestSpatialColorIndexObjects]
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -237,7 +243,7 @@ def trackNeighbor(location):
     else:
         neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
         count_buffered_records += 1
-        rebuildSpatialIndex()
+        buildSpatialIndex()
 
 
 def unTrackNeighbor(location):
@@ -279,7 +285,7 @@ def printCurrentCanvas(finalize=False):
             count_placed_colors, neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256]), (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate), end='\n')
 
 
-def rebuildSpatialIndex():
+def buildSpatialIndex():
     return
 
 
