@@ -175,6 +175,8 @@ def getBestPositionForColor(requestedColor):
     # if the spatial index is not empty
     if (neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256])):
         k_nearest_neighbors_list = list(neighborhood_color_spatial_index.nearest(colorTools.getColorBoundingBox(requestedColor), K_NEIGHBORS, objects='RAW'))
+    
+    for nearest_neighbor in k_nearest_neighbors_list:
         
     
     # return [requestedColor, nearestSpatialColorIndexObjects]
