@@ -38,6 +38,7 @@ START_POINT = numpy.array([config.canvas['START_X'], config.canvas['START_Y']], 
 # special values
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 INVALID_COORD = numpy.array([-1, -1], numpy.int8)
+INVALID_DISTANCE = sys.maxsize
 
 MAX_BUFFER_SIZE = 1000
 K_NEIGHBORS = 10
@@ -161,8 +162,10 @@ def continuePainting():
     count_colors_taken += 1
 
     # find the best location for that color
-    best_result = getBestPositionForColor(target_color)
-    result_coordinate = best_result[1]
+    result_coordinate = getBestPositionForColor(target_color)
+
+    if (numpy.array_equal(result_coordinate, INVALID_COORD)):
+        neighborhood_color_spatial_index = rTree.Index(canvasSpatialIndexGenerator(), properties=spatial_index_properties)
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(target_color, result_coordinate)
@@ -170,16 +173,77 @@ def continuePainting():
 
 def getBestPositionForColor(requestedColor):
 
+    # setup
     best_position = INVALID_COORD
+    best_color = BLACK
+    best_distance = INVALID_DISTANCE
 
-    # if the spatial index is not empty
+    # if the spatial index has colors
     if (neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256])):
+        
+        # get the k nearest neighbors to the requested color
         k_nearest_neighbors_list = list(neighborhood_color_spatial_index.nearest(colorTools.getColorBoundingBox(requestedColor), K_NEIGHBORS, objects='RAW'))
     
-    for nearest_neighbor in k_nearest_neighbors_list:
+        # check up to k nearest neighbors from the spatial index
+        for nearest_neighbor in k_nearest_neighbors_list:
+
+            # breakdown the spatial index record
+            nearest_neighbor_coordinate = nearest_neighbor.object
+            nearest_neighbor_neighborhood_color = nearest_neighbor.bbox[0:3]
+            nearest_neighbor_unused_id = nearest_neighbor.id
+            
+            # if the location is actually still available:
+            if (availability_canvas[nearest_neighbor_coordinate]):
+                
+                # the best position from the spatial index has been found
+                best_position = nearest_neighbor_coordinate
+                best_color = nearest_neighbor_neighborhood_color
+                best_distance = colorTools.getColorDiff(requestedColor, best_color)
+
+                # now every position in the buffer is checked for an even better result
+                for index in range(count_buffered_records):
+                    
+                    # get the distance
+                    buffer_record_color = neighborhood_color_buffer[index][0:3]
+                    buffer_record_coordinate = neighborhood_color_buffer[index][3:5]
+                    buffer_record_distance = colorTools.getColorDiff(requestedColor, buffer_record_color)
+
+                    # is the buffer record better and is its location still available?
+                    if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate])):
+                        
+                        # even better position found
+                        best_distance = buffer_record_distance
+                        best_color = buffer_record_color
+                        best_position = buffer_record_coordinate
+
+                # a "best" position was found, no need to check the remaining k neighbors
+                break
         
+        # best_position will be INVALID_POSITION if none of the k nearest neighbors is actually available
+        # when this happens the spatial index should be rebuilt and the best position querry should be repeated
+        return best_position
+
+    else:
+        # the spatial index is empty, just check the buffer
+        for index in range(count_buffered_records):
+            
+            # get the distance
+            buffer_record_color = neighborhood_color_buffer[index][0:3]
+            buffer_record_coordinate = neighborhood_color_buffer[index][3:5]
+            buffer_record_distance = colorTools.getColorDiff(requestedColor, buffer_record_color)
+
+            # is the buffer record better and is its location still available?
+            if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate])):
+                
+                # even better position found
+                best_distance = buffer_record_distance
+                best_color = buffer_record_color
+                best_position = buffer_record_coordinate
+
+        return best_position
+
+
     
-    # return [requestedColor, nearestSpatialColorIndexObjects]
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -222,6 +286,7 @@ def trackNeighbor(location):
     global availability_canvas
     global neighborhood_color_canvas
     global neighborhood_color_buffer
+    global neighborhood_color_spatial_index
 
     global count_available_locations
     global count_buffered_records
@@ -238,14 +303,13 @@ def trackNeighbor(location):
     neighborhood_color_canvas[location] = neighborhood_color
 
     # if there is room in the buffer, make an entry there
-    if (count_buffered_records < (MAX_BUFFER_SIZE - 1)):
+    if (count_buffered_records < MAX_BUFFER_SIZE):
         neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
         count_buffered_records += 1
-    # otherwise, before the buffer is full make an entry and then rebuild the rTree
+    # otherwise, rebuild the rTree
     else:
-        neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
-        count_buffered_records += 1
-        buildSpatialIndex()
+        # rebuild spatial index
+        neighborhood_color_spatial_index = rTree.Index(canvasSpatialIndexGenerator(), properties=spatial_index_properties)
 
 
 def unTrackNeighbor(location):
@@ -263,13 +327,13 @@ def printCurrentCanvas(finalize=False):
     # Global Access
     global previous_print_time
 
-    # get elapsed time
-    currentTime = time.time()
-    elapsed = currentTime - previous_print_time
+    # get elapsed_time time
+    current_time = time.time()
+    elapsed_time = current_time - previous_print_time
 
     # exclude duplicate printings
-    if (elapsed > 0):
-        rate = PRINT_RATE/elapsed
+    if (elapsed_time > 0):
+        rate = PRINT_RATE/elapsed_time
 
         # cancel (probably a duplicate)
         if (rate > 500) and not (finalize):
@@ -277,21 +341,20 @@ def printCurrentCanvas(finalize=False):
 
         # write the png file
         name = (FILENAME + '.png')
-        myFile = open(name, 'wb')
-        png_writer.write(myFile, canvasTools.toRawOutput(painting_canvas))
-        myFile.close()
+        output_file = open(name, 'wb')
+        png_writer.write(output_file, canvasTools.toRawOutput(painting_canvas))
+        output_file.close()
 
         # Info Print
-        previous_print_time = currentTime
-        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-            count_placed_colors, neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256]), (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate), end='\n')
-
-
-def buildSpatialIndex():
-    return
+        previous_print_time = current_time
+        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(count_placed_colors, count_available_locations, (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate))
 
 
 def canvasSpatialIndexGenerator():
+    global neighborhood_color_buffer
+
+    # clear the buffer, the data is non essential and about to get built into the spatial index
+    neighborhood_color_buffer = numpy.zeros([MAX_BUFFER_SIZE, 5], numpy.uint32)
 
     # loop over the whole canvas
     for x in range(CANVAS_SIZE[0]):
