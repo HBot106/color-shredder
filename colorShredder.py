@@ -193,7 +193,7 @@ def getBestPositionForColor(requestedColor):
             nearest_neighbor_unused_id = nearest_neighbor.id
             
             # if the location is actually still available:
-            if (availability_canvas[nearest_neighbor_coordinate]):
+            if (availability_canvas[nearest_neighbor_coordinate[0], nearest_neighbor_coordinate[1]]):
                 
                 # the best position from the spatial index has been found
                 best_position = nearest_neighbor_coordinate
@@ -233,7 +233,7 @@ def getBestPositionForColor(requestedColor):
             buffer_record_distance = colorTools.getColorDiff(requestedColor, buffer_record_color)
 
             # is the buffer record better and is its location still available?
-            if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate])):
+            if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate[0], buffer_record_coordinate[1]])):
                 
                 # even better position found
                 best_distance = buffer_record_distance
@@ -247,37 +247,32 @@ def getBestPositionForColor(requestedColor):
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
-def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
+def paintToCanvas(requestedColor, requested_coordinate):
 
     # Global Access
     global count_collisions
     global painting_canvas
 
-    # retains ability to process k potential nearest neighbots even tho only one is requested
-    for neighborhood_color_spatial_indexObject in nearestSpatialColorIndexObjects:
-        # Setup
-        requestedCoord = neighborhood_color_spatial_indexObject.object[0]
+    # double check the the pixel is available
+    if (canvasTools.isLocationBlack(requested_coordinate, painting_canvas)):
 
-        # double check the the pixel is available
-        if (canvasTools.isLocationBlack(requestedCoord, painting_canvas)):
+        # the best position for requestedColor has been found color it
+        painting_canvas[requested_coordinate[0], requested_coordinate[1]] = requestedColor
 
-            # the best position for requestedColor has been found color it
-            painting_canvas[requestedCoord[0], requestedCoord[1]] = requestedColor
+        unTrackNeighbor(requested_coordinate)
 
-            unTrackNeighbor(neighborhood_color_spatial_indexObject)
+        # each valid neighbor position should be added to uncolored Boundary Region
+        for neighbor in canvasTools.getNewBoundaryNeighbors(requested_coordinate, painting_canvas):
 
-            # each valid neighbor position should be added to uncolored Boundary Region
-            for neighbor in canvasTools.getNewBoundaryNeighbors(requestedCoord, painting_canvas):
+            trackNeighbor(neighbor)
 
-                trackNeighbor(neighbor)
-
-            # print progress
-            if (count_placed_colors % PRINT_RATE == 0):
-                printCurrentCanvas()
-            return
-
-    # major collision
-    count_collisions += 1
+        # print progress
+        if (count_placed_colors % PRINT_RATE == 0):
+            printCurrentCanvas()
+    
+    else:            
+        # major collision
+        count_collisions += 1
 
 
 def trackNeighbor(location):
@@ -304,7 +299,7 @@ def trackNeighbor(location):
 
     # if there is room in the buffer, make an entry there
     if (count_buffered_records < MAX_BUFFER_SIZE):
-        neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
+        neighborhood_color_buffer[count_buffered_records] = numpy.append(neighborhood_color, location)
         count_buffered_records += 1
     # otherwise, rebuild the rTree
     else:
@@ -347,7 +342,7 @@ def printCurrentCanvas(finalize=False):
 
         # Info Print
         previous_print_time = current_time
-        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(count_placed_colors, count_available_locations, (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate))
+        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(count_placed_colors, count_available_locations, (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate), end='\n')
 
 
 def canvasSpatialIndexGenerator():
