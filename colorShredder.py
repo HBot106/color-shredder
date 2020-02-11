@@ -22,6 +22,8 @@ MODE = config.mode['DEFAULT']
 # color generation settings
 SHUFFLE_COLORS = config.color['SHUFFLE']
 USE_MULTIPROCESSING = config.color['MULTIPROCESSING']
+COLOR_BIT_DEPTH = config.canvas['COLOR_BIT_DEPTH']
+NUMBER_OF_COLORS = ((2**COLOR_BIT_DEPTH)**3)
 
 # painter settings
 PRINT_RATE = config.painter['PRINT_RATE']
@@ -30,7 +32,6 @@ MIN_MULTI_WORKLOAD = config.painter['MIN_MULTI_WORKLOAD']
 MAX_PAINTERS = os.cpu_count() * 2
 
 # canvas settings
-COLOR_BIT_DEPTH = config.canvas['COLOR_BIT_DEPTH']
 CANVAS_SIZE = numpy.array([config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT']], numpy.uint32)
 START_POINT = numpy.array([config.canvas['START_X'], config.canvas['START_Y']], numpy.uint32)
 
@@ -38,27 +39,31 @@ START_POINT = numpy.array([config.canvas['START_X'], config.canvas['START_Y']], 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 INVALID_COORD = numpy.array([-1, -1], numpy.int8)
 
+MAX_BUFFER_SIZE = 1000
+
 # =============================================================================
 # GLOBALS
 # =============================================================================
 
 # position in and the list of all colors to be placed
-colors_taken_count = 0
-total_number_of_colors = ((2**COLOR_BIT_DEPTH)**3)
-all_colors_list = numpy.zeros([total_number_of_colors, 3], numpy.uint32)
+all_colors_list = numpy.zeros([NUMBER_OF_COLORS, 3], numpy.uint32)
 
 # used for ongoing speed calculation
 previous_print_time = time.time()
 
-# tracked for informational printout / progress report
-collision_count = 0
-placed_colors_count = 0
-
-# holds the current state of the canvas
-# format: [x][y][R, G, B]
+# holds the current state of the output painting
+# format: [x][y][R, G, B] uint32
 painting_canvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
-# New R-Tree data structure testing for lookup of available locations
+# holds neighborhood color for every location in the canvas in the following form:
+# format [x][y][NC.R, NC.G, NC.B] uint32
+neighborhood_color_canvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
+
+# holds state of availability for every location on the canvas
+# format[x][y] bool
+availability_canvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
+
+# rTree for quick neighborhood color nearest neighbor searches
 spatial_index_properties = rTree.Property()
 spatial_index_properties.storage = rTree.RT_Memory
 spatial_index_properties.dimension = 3
@@ -69,19 +74,18 @@ spatial_index_properties.index_capacity = 32
 spatial_index_properties.fill_factor = 0.5
 neighborhood_color_spatial_index = rTree.Index(properties=spatial_index_properties)
 
-# holds neighborhood color for every location in the canvas in the following form:
-# format [x][y][NC.R, NC.G, NC.B]
-neighborhood_color_canvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
-
-# format[x][y]
-availability_canvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
-available_locations_count = 0
-
 # format: [index][NC.R, NC.G, NC.B, x, y]
-neighborhood_color_buffer = numpy.zeros([1000, 5], numpy.uint32)
+neighborhood_color_buffer = numpy.zeros([MAX_BUFFER_SIZE, 5], numpy.uint32)
 
 # writes data arrays as PNG image files
 png_writer = pypng.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
+
+# various counters
+count_colors_taken = 0
+count_collisions = 0
+count_placed_colors = 0
+count_available_locations = 0
+count_buffered_records = 0
 
 # =============================================================================
 
@@ -113,7 +117,7 @@ def paintCanvas():
     # while 2 conditions, continue painting:
     #   1) more un-colored boundry locations exist
     #   2) there are more generated colors to be placed
-    while(available_locations_count and (colors_taken_count < total_number_of_colors)):
+    while(count_available_locations and (count_colors_taken < NUMBER_OF_COLORS)):
         continuePainting()
 
 
@@ -121,20 +125,20 @@ def paintCanvas():
 def startPainting():
 
     # Global Access
-    global colors_taken_count
+    global count_colors_taken
     global painting_canvas
-    global placed_colors_count
+    global count_placed_colors
 
     # Setup
     starting_coordinate = numpy.array([START_POINT[0], START_POINT[1]], numpy.uint32)
 
     # get the starting color
-    target_color = all_colors_list[colors_taken_count]
-    colors_taken_count += 1
+    target_color = all_colors_list[count_colors_taken]
+    count_colors_taken += 1
 
     # draw the first color at the starting location
     painting_canvas[starting_coordinate[0], starting_coordinate[1]] = target_color
-    placed_colors_count += 1
+    count_placed_colors += 1
 
     # add its neigbors to uncolored Boundary Region
     for neighbor in canvasTools.getNewBoundaryNeighbors(starting_coordinate, painting_canvas):
@@ -149,11 +153,11 @@ def startPainting():
 def continuePainting():
 
     # Global Access
-    global colors_taken_count
+    global count_colors_taken
 
     # get the color to be placed
-    target_color = all_colors_list[colors_taken_count]
-    colors_taken_count += 1
+    target_color = all_colors_list[count_colors_taken]
+    count_colors_taken += 1
 
     # find the best location for that color
     bestResult = getBestPositionForColor(target_color)
@@ -174,7 +178,7 @@ def getBestPositionForColor(requestedColor):
 def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
 
     # Global Access
-    global collision_count
+    global count_collisions
     global painting_canvas
 
     # retains ability to process k potential nearest neighbots even tho only one is requested
@@ -196,25 +200,54 @@ def paintToCanvas(requestedColor, nearestSpatialColorIndexObjects):
                 trackNeighbor(neighbor)
 
             # print progress
-            if (placed_colors_count % PRINT_RATE == 0):
+            if (count_placed_colors % PRINT_RATE == 0):
                 printCurrentCanvas()
             return
 
     # major collision
-    collision_count += 1
+    count_collisions += 1
+
 
 def trackNeighbor(location):
-    
+
     # Globals
+    global availability_canvas
+    global neighborhood_color_canvas
+    global neighborhood_color_buffer
+
+    global count_available_locations
+    global count_buffered_records
+
+
+    # mark location as available
+    availability_canvas[location] = True
+    count_available_locations += 1
+
+    # get neighborhood color
     neighborhood_color = canvasTools.getAverageColor(location, painting_canvas)
 
+    # record neighborhood color
+    neighborhood_color_canvas[location] = neighborhood_color
 
+    # if there is room in the buffer, make an entry there
+    if (count_buffered_records < (MAX_BUFFER_SIZE - 1)):
+        neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
+        count_buffered_records += 1
+    # otherwise, before the buffer is full make an entry and then rebuild the rTree
+    else:
+        neighborhood_color_buffer[count_buffered_records] = [neighborhood_color, location]
+        count_buffered_records += 1
+        rebuildSpatialIndex()
+
+
+def unTrackNeighbor(location):
+    # globals
+    global availability_canvas
+    global count_available_locations
+
+    availability_canvas[location] = False
+    count_available_locations -= 1
     
-
-def unTrackNeighbor(neighborhood_color_spatial_indexObject):
-    global placed_colors_count
-
-
 
 # prints the current state of painting_canvas as well as progress stats
 def printCurrentCanvas(finalize=False):
@@ -243,22 +276,25 @@ def printCurrentCanvas(finalize=False):
         # Info Print
         previous_print_time = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
-            placed_colors_count, neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256]), (placed_colors_count * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collision_count, rate), end='\n')
+            count_placed_colors, neighborhood_color_spatial_index.count([0, 0, 0, 256, 256, 256]), (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate), end='\n')
+
+
+def rebuildSpatialIndex():
+    return
 
 
 def canvasSpatialIndexGenerator():
-    global availability_canvas
-    global available_locations_count
 
-    for col in availability_canvas:
-        for location in col:
+    # loop over the whole canvas
+    for x in range(CANVAS_SIZE[0]):
+        for y in range(CANVAS_SIZE[1]):
 
-            if (location[0]):
-
-                neighborhoodColor = numpy.array([location[2], location[3], location[4]])
-
-                yield (available_locations_count, colorTools.getColorBoundingBox(neighborhoodColor), [location, neighborhoodColor])
-                available_locations_count += 1
+            # if it is available its neighborhood color should be added to the spatial index
+            if (availability_canvas[x, y]):
+                count_available_locations += 1
+                neighborhoodColor = neighborhood_color_canvas[x, y]
+                yield (0, colorTools.getColorBoundingBox(neighborhoodColor), numpy.array([x, y], numpy.uint32))
+                
 # r = index.Index(generator_function())
 
 
