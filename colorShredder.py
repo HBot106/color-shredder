@@ -79,6 +79,9 @@ neighborhood_color_spatial_index = rTree.Index(properties=spatial_index_properti
 # format: [index][NC.R, NC.G, NC.B, x, y]
 neighborhood_color_buffer = numpy.zeros([MAX_BUFFER_SIZE, 5], numpy.uint32)
 
+
+bulk_load_list = []
+
 # writes data arrays as PNG image files
 png_writer = pypng.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
 
@@ -156,6 +159,7 @@ def continuePainting():
 
     # Global Access
     global count_colors_taken
+    global neighborhood_color_spatial_index
 
     # get the color to be placed
     target_color = all_colors_list[count_colors_taken]
@@ -165,10 +169,13 @@ def continuePainting():
     result_coordinate = getBestPositionForColor(target_color)
 
     if (numpy.array_equal(result_coordinate, INVALID_COORD)):
+        bulkLoadPrep()
         neighborhood_color_spatial_index = rTree.Index(canvasSpatialIndexGenerator(), properties=spatial_index_properties)
-
-    # attempt to paint the color at the corresponding location
-    paintToCanvas(target_color, result_coordinate)
+        result_coordinate = getBestPositionForColor(target_color)
+        paintToCanvas(target_color, result_coordinate)
+    else:
+        # attempt to paint the color at the corresponding location
+        paintToCanvas(target_color, result_coordinate)
 
 
 def getBestPositionForColor(requestedColor):
@@ -209,7 +216,7 @@ def getBestPositionForColor(requestedColor):
                     buffer_record_distance = colorTools.getColorDiff(requestedColor, buffer_record_color)
 
                     # is the buffer record better and is its location still available?
-                    if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate])):
+                    if ((buffer_record_distance < best_distance) and (availability_canvas[buffer_record_coordinate[0], buffer_record_coordinate[1]])):
                         
                         # even better position found
                         best_distance = buffer_record_distance
@@ -252,12 +259,14 @@ def paintToCanvas(requestedColor, requested_coordinate):
     # Global Access
     global count_collisions
     global painting_canvas
+    global count_placed_colors
 
     # double check the the pixel is available
     if (canvasTools.isLocationBlack(requested_coordinate, painting_canvas)):
 
         # the best position for requestedColor has been found color it
         painting_canvas[requested_coordinate[0], requested_coordinate[1]] = requestedColor
+        count_placed_colors += 1
 
         unTrackNeighbor(requested_coordinate)
 
@@ -273,6 +282,9 @@ def paintToCanvas(requestedColor, requested_coordinate):
     else:            
         # major collision
         count_collisions += 1
+        # print("COLLISION")
+        # print(painting_canvas[requested_coordinate[0], requested_coordinate[1]])
+        # time.sleep(5)
 
 
 def trackNeighbor(location):
@@ -282,6 +294,7 @@ def trackNeighbor(location):
     global neighborhood_color_canvas
     global neighborhood_color_buffer
     global neighborhood_color_spatial_index
+    global painting_canvas
 
     global count_available_locations
     global count_buffered_records
@@ -295,7 +308,7 @@ def trackNeighbor(location):
     neighborhood_color = canvasTools.getAverageColor(location, painting_canvas)
 
     # record neighborhood color
-    neighborhood_color_canvas[location] = neighborhood_color
+    neighborhood_color_canvas[location[0], location[1]] = neighborhood_color
 
     # if there is room in the buffer, make an entry there
     if (count_buffered_records < MAX_BUFFER_SIZE):
@@ -304,7 +317,10 @@ def trackNeighbor(location):
     # otherwise, rebuild the rTree
     else:
         # rebuild spatial index
+        bulkLoadPrep()
         neighborhood_color_spatial_index = rTree.Index(canvasSpatialIndexGenerator(), properties=spatial_index_properties)
+
+    # print("Tracking: " + str(location))
 
 
 def unTrackNeighbor(location):
@@ -312,15 +328,18 @@ def unTrackNeighbor(location):
     global availability_canvas
     global count_available_locations
 
-    availability_canvas[location] = False
+    availability_canvas[location[0], location[1]] = False
     count_available_locations -= 1
+
+    # print("Un-Tracking: " + str(location))
     
 
 # prints the current state of painting_canvas as well as progress stats
-def printCurrentCanvas(finalize=False):
+def printCurrentCanvas(finalize=True):
 
     # Global Access
     global previous_print_time
+    global painting_canvas
 
     # get elapsed_time time
     current_time = time.time()
@@ -343,13 +362,23 @@ def printCurrentCanvas(finalize=False):
         # Info Print
         previous_print_time = current_time
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(count_placed_colors, count_available_locations, (count_placed_colors * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, rate), end='\n')
+        # time.sleep(5)
 
 
 def canvasSpatialIndexGenerator():
+    for record in bulk_load_list:
+        yield record
+
+def bulkLoadPrep():
+    global bulk_load_list
     global neighborhood_color_buffer
+    global count_buffered_records
+
+    bulk_load_list = []
 
     # clear the buffer, the data is non essential and about to get built into the spatial index
     neighborhood_color_buffer = numpy.zeros([MAX_BUFFER_SIZE, 5], numpy.uint32)
+    count_buffered_records = 0
 
     # loop over the whole canvas
     for x in range(CANVAS_SIZE[0]):
@@ -357,11 +386,8 @@ def canvasSpatialIndexGenerator():
 
             # if it is available its neighborhood color should be added to the spatial index
             if (availability_canvas[x, y]):
-                count_available_locations += 1
                 neighborhoodColor = neighborhood_color_canvas[x, y]
-                yield (0, colorTools.getColorBoundingBox(neighborhoodColor), numpy.array([x, y], numpy.uint32))
-                
-# r = index.Index(generator_function())
+                bulk_load_list.append((0, colorTools.getColorBoundingBox(neighborhoodColor), numpy.array([x, y], numpy.uint32)))
 
 
 if __name__ == '__main__':
