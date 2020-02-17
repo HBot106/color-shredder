@@ -7,24 +7,20 @@ import numpy
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
 
-# converts a canvas into raw data for writing to a png
-def toRawOutput(canvas):
+# converts a canvas_actual_color into raw data for writing to a png
+def toRawOutput(canvas_actual_color):
 
-    # converts the given canvas into a format that the PNG module can use to write a png
-    simpleCanvas = numpy.array(canvas, numpy.uint8)
-    transposedCanvas = numpy.transpose(simpleCanvas, (1, 0, 2))
-    flippedColors = numpy.flip(transposedCanvas, 2)
-    rawOutput = numpy.reshape(flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
-    return rawOutput
-
-
-def getNeighborhoodColor(location, canvas, MODE):
-    return getAverageColor(location, canvas)
+    # converts the given canvas_actual_color into a format that the PNG module can use to write a png
+    raw_canvas = numpy.array(canvas_actual_color, numpy.uint8)
+    transposed_canvas = numpy.transpose(raw_canvas, (1, 0, 2))
+    flipped_transposed_canvas = numpy.flip(transposed_canvas, 2)
+    output_canvas = numpy.reshape(flipped_transposed_canvas, (canvas_actual_color.shape[1], canvas_actual_color.shape[0] * 3))
+    return output_canvas
 
 
 # Gives all valid locations surrounding a given location
-# A location is invalid only if it is outside the given canvas bonuds
-def getNeighbors(canvas, targetCoordinates):
+# A location is invalid only if it is outside the given canvas_actual_color bonuds
+def getNeighbors(canvas_actual_color, coordinate_target_location):
 
     # Setup
     index = 0
@@ -40,11 +36,11 @@ def getNeighbors(canvas, targetCoordinates):
                 continue
 
             # calculate the neigbor's coordinates
-            neighbor = numpy.array([(targetCoordinates[0] - 1 + i), (targetCoordinates[1] - 1 + j)], numpy.uint32)
+            neighbor = numpy.array([(coordinate_target_location[0] - 1 + i), (coordinate_target_location[1] - 1 + j)], numpy.uint32)
 
-            # neighbor must be in the canvas
-            neighborIsInCanvas = ((0 <= neighbor[0] < canvas.shape[0]) and (0 <= neighbor[1] < canvas.shape[1]))
-            if (neighborIsInCanvas):
+            # neighbor must be in the canvas_actual_color
+            is_neighbor_on_canvas = ((0 <= neighbor[0] < canvas_actual_color.shape[0]) and (0 <= neighbor[1] < canvas_actual_color.shape[1]))
+            if (is_neighbor_on_canvas):
                 neighbors[index] = neighbor
                 index += 1
 
@@ -57,105 +53,107 @@ def getNeighbors(canvas, targetCoordinates):
 
 # filters out colored locations from a given neighbor list
 # i.e. neighbor color == BLACK
-def removeColoredNeighbors(neighbors, canvas):
+def removeColoredNeighbors(neighbors, canvas_actual_color):
 
     # Setup
     index = 0
-    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+    list_of_filtered_neighbors = numpy.zeros([8, 2], numpy.uint32)
 
     # KEEP only NEIGHBORS that are NOT COLORED (color equal BLACK)
     for neighbor in neighbors:
 
-        if (isLocationBlack(neighbor, canvas)):
-            filteredNeighbors[index] = neighbor
+        if (isLocationBlack(neighbor, canvas_actual_color)):
+            list_of_filtered_neighbors[index] = neighbor
             index += 1
 
     # return the filtered neighbors or an empty list
     if (index):
-        return filteredNeighbors[0:index]
+        return list_of_filtered_neighbors[0:index]
     else:
         return numpy.array([])
 
 
-def getNotPrevAvailNeighbors(targetCoordinates, canvas):
+def getNotPrevAvailNeighbors(coordinate_target_location, canvas_actual_color):
 
     # Setup
     index = 0
-    prevAvail = False
-    NotPrevAvailNeighbors = numpy.zeros([8, 2], numpy.uint32)
+    was_previously_available = False
+    list_of_filtered_neighbors = numpy.zeros([8, 2], numpy.uint32)
 
-    consideredNeighbors = removeColoredNeighbors(getNeighbors(canvas, targetCoordinates), canvas)
-    for neighbor in consideredNeighbors:
-        prevAvail = False
-        for neighborOfNeighbor in getNeighbors(canvas, neighbor):
-            if (not isLocationBlack(neighborOfNeighbor, canvas)):
-                prevAvail = True
+    # Get neighbors
+    # Don't consider BLACK pixels
+    list_of_pre_filtered_neighbors = removeColoredNeighbors(getNeighbors(canvas_actual_color, coordinate_target_location), canvas_actual_color)
+    
+    for neighbor in list_of_pre_filtered_neighbors:
+        was_previously_available = False
+        for neighbor_of_neighbor in getNeighbors(canvas_actual_color, neighbor):
+            if (not isLocationBlack(neighbor_of_neighbor, canvas_actual_color)):
+                was_previously_available = True
 
-        if (not prevAvail):
-            NotPrevAvailNeighbors[index] = neighbor
+        if (not was_previously_available):
+            list_of_filtered_neighbors[index] = neighbor
             index += 1
 
     if (index):
-        return NotPrevAvailNeighbors[0:index]
+        return list_of_filtered_neighbors[0:index]
     else:
         return numpy.array([])
 
+
 # filters out non-colored locations from a given neighbor list
 # i.e. neighbor color =/= BLACK
-
-
-def removeNonColoredNeighbors(neighbors, canvas):
+def removeNonColoredNeighbors(neighbors, canvas_actual_color):
 
     # Setup
     index = 0
-    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+    list_of_filtered_neighbors = numpy.zeros([8, 2], numpy.uint32)
 
     # Keep only NEIGHBORS that are COLORED (color not equal BLACK)
     for neighbor in neighbors:
 
-        if not (isLocationBlack(neighbor, canvas)):
-            filteredNeighbors[index] = neighbor
+        if not (isLocationBlack(neighbor, canvas_actual_color)):
+            list_of_filtered_neighbors[index] = neighbor
             index += 1
 
     # return the filtered neighbors or an empty list
     if (index):
-        return filteredNeighbors[0:index]
+        return list_of_filtered_neighbors[0:index]
     else:
         return numpy.array([])
 
 
 # neighbor filter helper
-def isLocationBlack(location, canvas):
-    return numpy.array_equal(canvas[location[0], location[1]], BLACK)
+def isLocationBlack(location, canvas_actual_color):
+    return numpy.array_equal(canvas_actual_color[location[0], location[1]], BLACK)
 
 
 # get the average color of a given location
-def getAverageColor(target, canvas):
+def getAverageColor(target, canvas_actual_color):
     # Setup
     index = 0
-    neigborhoodColor = BLACK
+    rgb_color_sum = BLACK
 
     # Get neighbors
     # Don't consider BLACK pixels
-    consideredNeighbors = removeNonColoredNeighbors(getNeighbors(canvas, target), canvas)
+    list_of_pre_filtered_neighbors = removeNonColoredNeighbors(getNeighbors(canvas_actual_color, target), canvas_actual_color)
 
     # sum up the color values from each neighbor
-    for neighbor in consideredNeighbors:
-        neigborhoodColor = numpy.add(canvas[neighbor[0], neighbor[1]], neigborhoodColor)
+    for neighbor in list_of_pre_filtered_neighbors:
+        rgb_color_sum = numpy.add(canvas_actual_color[neighbor[0], neighbor[1]], rgb_color_sum)
         index += 1
 
     # check if the considered pixel has at least one valid neighbor
     if (index):
 
         # divide through by the index to average the color
-        indexArray = numpy.array([index, index, index], numpy.uint32)
-        avgColor = numpy.divide(neigborhoodColor, indexArray)
-        roundedAvg = numpy.array(avgColor, numpy.uint32)
+        rgb_divisor_array = numpy.array([index, index, index], numpy.uint32)
+        rgb_average_color = numpy.divide(rgb_color_sum, rgb_divisor_array)
+        rgb_average_color_rounded = numpy.array(rgb_average_color, numpy.uint32)
 
-        return roundedAvg
+        return rgb_average_color_rounded
     else:
         return BLACK
 
 
-def getNewBoundaryNeighbors(targetCoord, canvas):
-    return removeColoredNeighbors(getNeighbors(canvas, targetCoord), canvas)
+def getNewBoundaryNeighbors(targetCoord, canvas_actual_color):
+    return removeColoredNeighbors(getNeighbors(canvas_actual_color, targetCoord), canvas_actual_color)

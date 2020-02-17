@@ -49,8 +49,8 @@ list_of_all_colors = numpy.zeros([TOTAL_NUMBER_OF_COLORS, 3], numpy.uint32)
 time_of_last_print = time.time()
 
 # New R-Tree data structure testing for lookup of available locations
-index_properties = rTree.Property()
-spatial_index_of_neighborhood_color_holding_location = rTree.Index()
+index_properties = config.index_properties
+spatial_index_of_neighborhood_color_holding_location = config.spatial_index_of_neighborhood_color_holding_location
 
 # CANVASES
 # Canvases are 2d arrays that are the size of the output painting
@@ -93,18 +93,6 @@ def globalSetup():
     # generate all colors in the color space and shuffle them
     global list_of_all_colors
     list_of_all_colors = colorTools.generateColors(COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
-
-    # create rTree and set properties
-    global index_properties
-    global spatial_index_of_neighborhood_color_holding_location
-    index_properties.storage = rTree.RT_Memory
-    index_properties.dimension = 3
-    index_properties.variant = rTree.RT_Star
-    index_properties.near_minimum_overlap_factor = 32
-    index_properties.leaf_capacity = 32
-    index_properties.index_capacity = 32
-    index_properties.fill_factor = 0.5
-    spatial_index_of_neighborhood_color_holding_location = rTree.Index(properties=index_properties)
 
 
 # manages painting of the canvas
@@ -221,7 +209,7 @@ def trackNeighbor(location):
         canvas_location_availability[location[0], location[1]] = False
 
     # get the newest neighborhood color
-    rgb_neighborhood_color = canvasTools.getNeighborhoodColor(location, canvas_actual_color, MODE)
+    rgb_neighborhood_color = canvasTools.getAverageColor(location, canvas_actual_color)
 
     # update the location in the availability index
     canvas_location_availability[location[0]][location[1]] = True

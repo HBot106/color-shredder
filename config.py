@@ -1,5 +1,6 @@
 import os
 import numpy
+from rtree import index as rTree
 
 output = dict(
     FILENAME="painting"
@@ -21,13 +22,24 @@ color = dict(
 painter = dict(
     LOCATIONS_PER_PAINTER=50,
     MIN_MULTI_WORKLOAD=200,
-    PRINT_RATE=10
+    PRINT_RATE=100
 )
 
 canvas = dict(
     COLOR_BIT_DEPTH=5,
-    CANVAS_WIDTH=64,
-    CANVAS_HEIGHT=64,
-    START_X=32,
-    START_Y=32
+    CANVAS_WIDTH=256,
+    CANVAS_HEIGHT=256,
+    START_X=128,
+    START_Y=128
 )
+
+index_properties = rTree.Property()
+index_properties.storage = rTree.RT_Memory
+index_properties.dimension = 3
+index_properties.variant = rTree.RT_Star
+index_properties.near_minimum_overlap_factor = 32
+index_properties.leaf_capacity = 32
+index_properties.index_capacity = 32
+index_properties.fill_factor = 0.5
+
+spatial_index_of_neighborhood_color_holding_location = rTree.Index(properties=index_properties)
