@@ -5,7 +5,7 @@ mode = dict(
     MIN = 0,
     AVG = 1,
     FAST = 2,
-    CURRENT = 2,
+    CURRENT = 1,
     DEFAULT = 2
 )
 

@@ -34,26 +34,46 @@ def considerPixelAt(canvas, targetCoordinates, targetColor, MODE):
 # Gets the MINIMUM value of all the euclidianDistances beteen (valid neighbors of the target location) and (the target color)
 def minimumSelection(canvas, targetCoordinates, targetColor):
 
-    # Setup
-    index = 0
     neighborDifferences = numpy.zeros(8, numpy.uint32)
 
-    # Get neighbors
-    # Don't consider BLACK pixels
-    validNeighbors = removeNonColoredNeighbors(
-        getNeighbors(canvas, targetCoordinates), canvas)
+    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
+    count_differences = 0
+    for i in range(3):
+        for j in range(3):
 
-    for neighbor in validNeighbors:
-        # get colDiff between the neighbor and target colors, add it to the list
-        neigborColor = canvas[neighbor[0], neighbor[1]]
-        euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
-        neighborDifferences[index] = euclidianDistance
-        index += 1
+            # this pixel is the location being considered;
+            # it is not a neigbor, go to the next one
+            if (i == 1 and j == 1):
+                continue
+
+            # calculate the neigbor's coordinates
+            neighbor = numpy.array(
+                [(targetCoordinates[0] - 1 + i), (targetCoordinates[1] - 1 + j)], numpy.uint32)
+
+            # neighbor must be in the canvas
+            neighborIsInCanvas = ((0 <= neighbor[0] < canvas.shape[0])
+                                  and (0 <= neighbor[1] < canvas.shape[1]))
+            
+            neighborNotBlack = not numpy.array_equal(canvas[neighbor[0], neighbor[1]], BLACK)
+
+            if (neighborIsInCanvas and neighborNotBlack):
+
+                # get colDiff between the neighbor and target colors, add it to the list
+                neigborColor = canvas[neighbor[0], neighbor[1]]
+
+                # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
+                colorDifference = numpy.subtract(targetColor, neigborColor)
+                differenceSquared = numpy.multiply(colorDifference, colorDifference)
+                squaresSum = numpy.sum(differenceSquared)
+                euclidianDistanceAprox = squaresSum
+
+                neighborDifferences[count_differences] = euclidianDistanceAprox
+                count_differences += 1
 
     # check if the considered pixel has at least one valid neighbor
-    if (index):
+    if (count_differences):
         # return the minimum difference of all the neighbors
-        return numpy.min(neighborDifferences[0:index])
+        return numpy.min(neighborDifferences[0:count_differences])
 
     # if it has no valid neighbors, maximise its colorDiff
     else:
@@ -75,8 +95,8 @@ def averageSelection(canvas, targetCoordinates, targetColor):
     for neighbor in validNeighbors:
         # get colDiff between the neighbor and target colors, add it to the list
         neigborColor = canvas[neighbor[0], neighbor[1]]
-        euclidianDistance = colorTools.getColorDiff(targetColor, neigborColor)
-        neighborDifferences[index] = euclidianDistance
+        euclidianDistanceAprox = colorTools.getColorDiff(targetColor, neigborColor)
+        neighborDifferences[index] = euclidianDistanceAprox
         index += 1
 
     # check if the considered pixel has at least one valid neighbor
@@ -89,7 +109,7 @@ def averageSelection(canvas, targetCoordinates, targetColor):
         return sys.maxsize
 
 
-# Gets the euclidianDistance beteen (the average color of valid neighbors of the target location) and (the target color)
+# Gets the euclidianDistanceAprox beteen (the average color of valid neighbors of the target location) and (the target color)
 def fastAverageSelection(canvas, targetCoordinates, targetColor):
 
     # Setup
