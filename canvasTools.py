@@ -175,6 +175,37 @@ def getNeighbors(canvas, targetCoordinates):
         return numpy.array([])
 
 
+def removeColoredNeighbors2(coordinate_target_location, painting_canvas, array_of_neighbors):
+
+    # Setup
+    index = 0
+    array_of_neighbors.fill(0)
+
+    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
+    for i in range(3):
+        for j in range(3):
+
+            # this pixel is the location being considered;
+            # it is not a neigbor, go to the next one
+            if (i == 1 and j == 1):
+                continue
+
+            # calculate the neigbor's coordinates
+            coordinate_neighbor = ((coordinate_target_location[0] - 1 + i), (coordinate_target_location[1] - 1 + j))
+
+            # neighbor must be in the canvas
+            neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < painting_canvas.shape[0])
+                                  and (0 <= coordinate_neighbor[1] < painting_canvas.shape[1]))
+
+            if (neighborIsInCanvas):
+                if (numpy.array_equal(painting_canvas[coordinate_neighbor], BLACK)):
+                    array_of_neighbors[index] = coordinate_neighbor
+                    index += 1
+
+    
+    return array_of_neighbors[0:index]
+
+
 # filters out colored locations from a given neighbor list
 # i.e. neighbor color == BLACK
 def removeColoredNeighbors(neighbors, canvas):

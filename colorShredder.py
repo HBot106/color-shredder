@@ -1,6 +1,5 @@
 import png
 import numpy
-from numba import njit
 
 import os
 import sys
@@ -27,13 +26,11 @@ MIN_MULTI_WORKLOAD = config.painter['MIN_MULTI_WORKLOAD']
 MAX_PAINTERS = os.cpu_count() * 2
 
 COLOR_BIT_DEPTH = config.canvas['COLOR_BIT_DEPTH']
-CANVAS_SIZE = numpy.array(
-    [config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT']], numpy.uint32)
-START_POINT = numpy.array(
-    [config.canvas['START_X'], config.canvas['START_Y']], numpy.uint32)
+CANVAS_SIZE = (config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT'])
+START_POINT = (config.canvas['START_X'], config.canvas['START_Y'])
 
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
-INVALID_COORD = numpy.array([-1, -1], numpy.int8)
+INVALID_COORD = (-1, -1)
 
 # =============================================================================
 # GLOBALS
@@ -104,19 +101,22 @@ def startPainting():
     global coloredCount
 
     # Setup
-    startPoint = numpy.array([START_POINT[0], START_POINT[1]], numpy.uint32)
     targetColor = allColors[colorIndex]
 
     # draw the first color at the starting pixel
-    workingCanvas[startPoint[0], startPoint[1]] = targetColor
+    workingCanvas[START_POINT[0], START_POINT[1]] = targetColor
     colorIndex += 1
 
+    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+    canvasTools.removeColoredNeighbors2(START_POINT, workingCanvas, filteredNeighbors)
+
     # add its neigbors to isAvailable
-    for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, startPoint), workingCanvas):
+    for neighbor in filteredNeighbors:
         isAvailable.append(neighbor)
 
+
     # finish first pixel
-    coloredCount = 10
+    coloredCount = 1
     printCurrentCanvas()
 
 
@@ -212,8 +212,7 @@ def getBestPositionForColor(requestedColor):
                     continue
 
                 # calculate the neigbor's coordinates
-                neighbor = numpy.array(
-                    [(available[0] - 1 + i), (available[1] - 1 + j)], numpy.uint32)
+                neighbor = ((available[0] - 1 + i), (available[1] - 1 + j))
 
                 # neighbor must be in the canvas
                 neighborIsInCanvas = ((0 <= neighbor[0] < workingCanvas.shape[0])
@@ -257,7 +256,7 @@ def getBestPositionForColor(requestedColor):
         # if it is the best so far save the value and its location
         if (check < minDistance):
             minDistance = check
-            MinCoord = numpy.array(available, numpy.uint32)
+            MinCoord = available
 
     return [requestedColor, MinCoord]
 
@@ -271,23 +270,22 @@ def paintToCanvas(requestedColor, requestedCoord):
     global isAvailable
     global workingCanvas
 
-    # Setup
-    requestedCoordX = requestedCoord[0]
-    requestedCoordY = requestedCoord[1]
-
     # double check the the pixel is BLACK
     isBlack = numpy.array_equal(workingCanvas[requestedCoord[0], requestedCoord[1]], BLACK)
     if (isBlack):
 
         # the best position for requestedColor has been found color it
-        workingCanvas[requestedCoordX, requestedCoordY] = requestedColor
+        workingCanvas[requestedCoord[0], requestedCoord[1]] = requestedColor
 
         # remove that position from isAvailable and increment the count
         isAvailable.remove(requestedCoord)
         coloredCount += 1
 
-        # each valid neighbor position should be added to isAvailable
-        for neighbor in canvasTools.removeColoredNeighbors(canvasTools.getNeighbors(workingCanvas, requestedCoord), workingCanvas):
+        filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
+        canvasTools.removeColoredNeighbors2(requestedCoord, workingCanvas, filteredNeighbors)
+
+        # add its neigbors to isAvailable
+        for neighbor in filteredNeighbors:
             isAvailable.append(neighbor)
 
     # collision
