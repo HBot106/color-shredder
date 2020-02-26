@@ -3,6 +3,8 @@ import colorTools
 import sys
 import numpy
 
+from numba import njit
+
 # BLACK reference
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
@@ -174,12 +176,11 @@ def getNeighbors(canvas, targetCoordinates):
     else:
         return numpy.array([])
 
-
-def removeColoredNeighbors2(coordinate_target_location, painting_canvas, array_of_neighbors):
+# @njit
+def removeColoredNeighbors2(coordinate_target_location, painting_canvas):
 
     # Setup
-    index = 0
-    array_of_neighbors.fill(0)
+    array_of_neighbors = []
 
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -199,11 +200,10 @@ def removeColoredNeighbors2(coordinate_target_location, painting_canvas, array_o
 
             if (neighborIsInCanvas):
                 if (numpy.array_equal(painting_canvas[coordinate_neighbor], BLACK)):
-                    array_of_neighbors[index] = coordinate_neighbor
-                    index += 1
+                    array_of_neighbors.append(coordinate_neighbor)
 
     
-    return array_of_neighbors[0:index]
+    return array_of_neighbors
 
 
 # filters out colored locations from a given neighbor list

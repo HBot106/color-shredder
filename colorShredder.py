@@ -1,6 +1,8 @@
 import png
 import numpy
 
+from numba import njit
+
 import os
 import sys
 import concurrent.futures
@@ -48,11 +50,12 @@ lastPrintTime = time.time()
 collisionCount = 0
 coloredCount = 0
 
-# dictionary used for lookup of available locations
+# dictionary used for lookup of coordinate_available locations
 isAvailable = []
 
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
+availabilityCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
 
 # writes data arrays as PNG image files
 pngWriter = png.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
@@ -107,17 +110,19 @@ def startPainting():
     workingCanvas[START_POINT[0], START_POINT[1]] = targetColor
     colorIndex += 1
 
-    filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
-    canvasTools.removeColoredNeighbors2(START_POINT, workingCanvas, filteredNeighbors)
+    filteredNeighbors = canvasTools.removeColoredNeighbors2(START_POINT, workingCanvas)
 
     # add its neigbors to isAvailable
     for neighbor in filteredNeighbors:
-        isAvailable.append(neighbor)
+        if (not availabilityCanvas[neighbor]):
+            isAvailable.append(neighbor)
+            availabilityCanvas[neighbor] = True
+
 
 
     # finish first pixel
     coloredCount = 1
-    printCurrentCanvas()
+    printCurrentCanvas(True)
 
 
 # continue the painting
@@ -132,7 +137,7 @@ def continuePainting():
     # Setup
     availableCount = len(isAvailable)
 
-    # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
+    # if more than MIN_MULTI_WORKLOAD locations are coordinate_available, allow multiprocessing
     if ((availableCount > MIN_MULTI_WORKLOAD) and USE_MULTIPROCESSING):
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
@@ -148,8 +153,9 @@ def continuePainting():
                 colorIndex += 1
 
                 # schedule a worker to find the best location for that color
+                neighborDifferences = numpy.zeros(8, numpy.uint32)
                 painters.append(painterManager.submit(
-                    getBestPositionForColor, targetColor))
+                    getBestPositionForColor, targetColor, neighborDifferences))
 
         # as each worker completes
         for painter in concurrent.futures.as_completed(painters):
@@ -173,7 +179,8 @@ def continuePainting():
         colorIndex += 1
 
         # find the best location for that color
-        bestResult = getBestPositionForColor(targetColor)
+        neighborDifferences = numpy.zeros(8, numpy.uint32)
+        bestResult = getBestPositionForColor(targetColor, neighborDifferences)
         resultColor = bestResult[0]
         resultCoord = bestResult[1]
 
@@ -182,27 +189,27 @@ def continuePainting():
 
 
 # Gives the best location among all avilable for the requested color; Also returns the color itself
-# # In other words, checks every available location using considerPixelAt(), keeping track of the
+# # In other words, checks every coordinate_available location using considerPixelAt(), keeping track of the
 # # minimum (best/closest) value returned and the location associated with it, this location "MinCoord"
 # # is where we will place the target color
 # @njit
-def getBestPositionForColor(requestedColor):
+def getBestPositionForColor(requestedColor, neighborDifferences):
 
     # reset minimums
     MinCoord = INVALID_COORD
     minDistance = sys.maxsize
 
-    # for every available position in the boundry, perform the check, keep the best position:
-    for available in isAvailable:
+    # for every coordinate_available position in the boundry, perform the check, keep the best position:
+    for coordinate_available in isAvailable:
 
         # check = canvasTools.considerPixelAt(
-        #     workingCanvas, available, requestedColor, MODE)
-        # def minimumSelection(workingCanvas, available, requestedColor):
+        #     workingCanvas, coordinate_available, requestedColor, MODE)
+        # def minimumSelection(workingCanvas, coordinate_available, requestedColor):
 
-        neighborDifferences = numpy.zeros(8, numpy.uint32)
+        index = 0
+        neighborDifferences.fill(0)
 
         # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
-        count_differences = 0
         for i in range(3):
             for j in range(3):
 
@@ -212,7 +219,7 @@ def getBestPositionForColor(requestedColor):
                     continue
 
                 # calculate the neigbor's coordinates
-                neighbor = ((available[0] - 1 + i), (available[1] - 1 + j))
+                neighbor = ((coordinate_available[0] - 1 + i), (coordinate_available[1] - 1 + j))
 
                 # neighbor must be in the canvas
                 neighborIsInCanvas = ((0 <= neighbor[0] < workingCanvas.shape[0])
@@ -232,23 +239,23 @@ def getBestPositionForColor(requestedColor):
                         squaresSum = numpy.sum(differenceSquared)
                         euclidianDistanceAprox = squaresSum
 
-                        neighborDifferences[count_differences] = euclidianDistanceAprox
-                        count_differences += 1
+                        neighborDifferences[index] = euclidianDistanceAprox
+                        index += 1
 
-        if (MODE == config.mode['MIN']):
+        if (MODE == 0):
             # check if the considered pixel has at least one valid neighbor
-            if (count_differences):
+            if (index):
                 # return the minimum difference of all the neighbors
-                check = numpy.min(neighborDifferences[0:count_differences])
+                check = numpy.min(neighborDifferences)
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 check = sys.maxsize
         
-        if (MODE == config.mode['AVG']):
+        if (MODE == 1):
             # check if the considered pixel has at least one valid neighbor
-            if (count_differences):
+            if (index):
                 # return the minimum difference of all the neighbors
-                check = numpy.mean(neighborDifferences[0:count_differences])
+                check = numpy.mean(neighborDifferences)
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 check = sys.maxsize
@@ -256,9 +263,9 @@ def getBestPositionForColor(requestedColor):
         # if it is the best so far save the value and its location
         if (check < minDistance):
             minDistance = check
-            MinCoord = available
+            MinCoord = coordinate_available
 
-    return [requestedColor, MinCoord]
+    return (requestedColor, MinCoord)
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -279,14 +286,19 @@ def paintToCanvas(requestedColor, requestedCoord):
 
         # remove that position from isAvailable and increment the count
         isAvailable.remove(requestedCoord)
+        availabilityCanvas[requestedCoord] = False
+        
         coloredCount += 1
 
-        filteredNeighbors = numpy.zeros([8, 2], numpy.uint32)
-        canvasTools.removeColoredNeighbors2(requestedCoord, workingCanvas, filteredNeighbors)
+        filteredNeighbors = canvasTools.removeColoredNeighbors2(requestedCoord, workingCanvas)
 
         # add its neigbors to isAvailable
         for neighbor in filteredNeighbors:
-            isAvailable.append(neighbor)
+            
+            if (not availabilityCanvas[neighbor]):
+                isAvailable.append(neighbor)
+                availabilityCanvas[neighbor] = True
+
 
     # collision
     else:
@@ -325,7 +337,8 @@ def printCurrentCanvas(finalize=False):
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
-
+        
+    
 
 if __name__ == '__main__':
     main()
