@@ -15,7 +15,7 @@ import config
 # =============================================================================
 FILENAME = "painting"
 
-MODE = config.mode['DEFAULT']
+MODE = config.mode['CURRENT']
 
 SHUFFLE_COLORS = config.color['SHUFFLE']
 USE_MULTIPROCESSING = config.color['SHUFFLE']
