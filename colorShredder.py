@@ -246,7 +246,7 @@ def getBestPositionForColor(requestedColor, neighborDifferences):
             # check if the considered pixel has at least one valid neighbor
             if (index):
                 # return the minimum difference of all the neighbors
-                check = numpy.min(neighborDifferences)
+                check = numpy.min(neighborDifferences[0:index])
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 check = sys.maxsize
@@ -255,7 +255,7 @@ def getBestPositionForColor(requestedColor, neighborDifferences):
             # check if the considered pixel has at least one valid neighbor
             if (index):
                 # return the minimum difference of all the neighbors
-                check = numpy.mean(neighborDifferences)
+                check = numpy.mean(neighborDifferences[0:index])
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 check = sys.maxsize
