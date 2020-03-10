@@ -265,7 +265,7 @@ def printCurrentCanvas(finalize=False):
 
         # Info Print
         time_of_last_print = time_current
-        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
+        print("Colored: {}. Available: {}. Complete: {:3.2f}. Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             count_colors_placed, spatial_index_of_neighborhood_color_holding_location.count([0, 0, 0, 256, 256, 256]), (count_colors_placed * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), count_collisions, painting_rate), end='\n')
 
 
