@@ -280,7 +280,7 @@ def printCurrentCanvas(finalize=False):
 
         # Info Print
         lastPrintTime = currentTime
-        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
+        print("Colored: {}. Available: {}. Complete: {:3.2f}. Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             coloredCount, len(isAvailable), (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
 
 
