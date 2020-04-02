@@ -50,9 +50,7 @@ coloredCount = 0
 # dictionary used for lookup of coordinate_available locations
 count_available = 0
 list_availabilty = []
-canvas_availabilty = numpy.zeros(
-    [CANVAS_SIZE[0], CANVAS_SIZE[1], 1], numpy.bool)
-
+canvas_availabilty = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 
@@ -129,12 +127,18 @@ def startPainting():
                                   and (0 <= coordinate_neighbor[1] < workingCanvas.shape[1]))
 
             if (neighborIsInCanvas):
+                print()
+                print(coordinate_neighbor)
+                print("in-canvas")
                 if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
-                    if (not canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
-
+                    print("is-black")
+                    if (canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
+                        print("already-avail")
+                    else:
                         list_availabilty.append(coordinate_neighbor)
                         canvas_availabilty[coordinate_neighbor[0],
-                                           coordinate_neighbor[1]] = True
+                                            coordinate_neighbor[1]] = True
+                        print("marked " + str(coordinate_neighbor))
                         count_available += 1
 
     # finish first pixel
@@ -310,6 +314,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
         list_availabilty.remove((requestedCoord[0], requestedCoord[1]))
         canvas_availabilty[requestedCoord] = False
+        print("unmarked " + str(requestedCoord))
         count_available -= 1
 
         coloredCount += 1
@@ -337,12 +342,13 @@ def paintToCanvas(requestedColor, requestedCoord):
                     print("in-canvas")
                     if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
                         print("is-black")
-                        if (not canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
-                            print("not-already-avail")
-
+                        if (canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
+                            print("already-avail")
+                        else:
                             list_availabilty.append(coordinate_neighbor)
                             canvas_availabilty[coordinate_neighbor[0],
                                                coordinate_neighbor[1]] = True
+                            print("marked " + str(coordinate_neighbor))
                             count_available += 1
 
     # collision
@@ -394,7 +400,7 @@ def printCurrentCanvas(finalize=False):
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             coloredCount, count_available, (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
-    
+
     if (config.painter['DEBUG_WAIT']):
         time.sleep(3)
 
