@@ -180,7 +180,8 @@ def getNeighbors(canvas, targetCoordinates):
 def removeColoredNeighbors2(coordinate_target_location, painting_canvas):
 
     # Setup
-    array_of_neighbors = []
+    index = 0
+    array_of_neighbors = numpy.zeros([8, 2], numpy.uint32)
 
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -200,11 +201,15 @@ def removeColoredNeighbors2(coordinate_target_location, painting_canvas):
 
             if (neighborIsInCanvas):
                 if (numpy.array_equal(painting_canvas[coordinate_neighbor], BLACK)):
-                    array_of_neighbors.append(coordinate_neighbor)
+                    array_of_neighbors[index] = numpy.array(coordinate_neighbor)
+                    index += 1
 
-    
-    return array_of_neighbors
 
+    # return the filtered neighbors or an empty list
+    if (index):
+        return array_of_neighbors[0:index]
+    else:
+        return numpy.array([])
 
 # filters out colored locations from a given neighbor list
 # i.e. neighbor color == BLACK
