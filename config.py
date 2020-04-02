@@ -17,13 +17,14 @@ color = dict(
 painter = dict(
     LOCATIONS_PER_PAINTER = 50,
     MIN_MULTI_WORKLOAD = 200,
-    PRINT_RATE = 10
+    PRINT_RATE = 1,
+    DEBUG_WAIT = True
 )
 
 canvas = dict(
     COLOR_BIT_DEPTH = 6,
-    CANVAS_WIDTH = 64,
-    CANVAS_HEIGHT = 64,
-    START_X = 32,
-    START_Y = 32
+    CANVAS_WIDTH = 32,
+    CANVAS_HEIGHT = 32,
+    START_X = 16,
+    START_Y = 16
 )

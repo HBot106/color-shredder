@@ -9,15 +9,12 @@ import concurrent.futures
 import time
 
 import colorTools
-import canvasTools
 import config
 
 # =============================================================================
 # MACROS
 # =============================================================================
 FILENAME = "painting"
-
-MODE = config.mode['CURRENT']
 
 SHUFFLE_COLORS = config.color['SHUFFLE']
 USE_MULTIPROCESSING = config.color['SHUFFLE']
@@ -53,8 +50,8 @@ coloredCount = 0
 # dictionary used for lookup of coordinate_available locations
 count_available = 0
 list_availabilty = []
-list_np_availabilty = numpy.zeros([CANVAS_SIZE[0] * CANVAS_SIZE[1], 2], numpy.uint32)
-canvas_availabilty = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 1], numpy.bool)
+canvas_availabilty = numpy.zeros(
+    [CANVAS_SIZE[0], CANVAS_SIZE[1], 1], numpy.bool)
 
 # holds the current state of the canvas
 workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
@@ -114,8 +111,6 @@ def startPainting():
     workingCanvas[START_POINT[0], START_POINT[1]] = targetColor
     colorIndex += 1
 
-    
-    
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
         for j in range(3):
@@ -126,7 +121,8 @@ def startPainting():
                 continue
 
             # calculate the neigbor's coordinates
-            coordinate_neighbor = ((START_POINT[0] - 1 + i), (START_POINT[1] - 1 + j))
+            coordinate_neighbor = (
+                (START_POINT[0] - 1 + i), (START_POINT[1] - 1 + j))
 
             # neighbor must be in the canvas
             neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < workingCanvas.shape[0])
@@ -135,11 +131,11 @@ def startPainting():
             if (neighborIsInCanvas):
                 if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
                     if (not canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
-                        list_availabilty.append(coordinate_neighbor)
-                        canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]] = True
-                        count_available += 1
-    
 
+                        list_availabilty.append(coordinate_neighbor)
+                        canvas_availabilty[coordinate_neighbor[0],
+                                           coordinate_neighbor[1]] = True
+                        count_available += 1
 
     # finish first pixel
     coloredCount = 1
@@ -176,7 +172,7 @@ def continuePainting():
                 # schedule a worker to find the best location for that color
                 neighborDifferences = numpy.zeros(8, numpy.uint32)
                 painters.append(painterManager.submit(
-                    getBestPositionForColor, targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas, MODE))
+                    getBestPositionForColor, targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas))
 
         # as each worker completes
         for painter in concurrent.futures.as_completed(painters):
@@ -201,7 +197,8 @@ def continuePainting():
 
         # find the best location for that color
         neighborDifferences = numpy.zeros(8, numpy.uint32)
-        bestResult = getBestPositionForColor(targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas, MODE)
+        bestResult = getBestPositionForColor(
+            targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas)
         resultColor = bestResult[0]
         resultCoord = bestResult[1]
 
@@ -214,7 +211,7 @@ def continuePainting():
 # # minimum (best/closest) value returned and the location associated with it, this location "MinCoord"
 # # is where we will place the target color
 # @njit
-def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_available_coordinates, canvas_painting, selection_mode):
+def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_available_coordinates, canvas_painting):
 
     # reset minimums
     MinCoord = INVALID_COORD
@@ -236,7 +233,8 @@ def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_avail
                     continue
 
                 # calculate the neigbor's coordinates
-                coordinate_neighbor = ((coordinate_available[0] - 1 + i), (coordinate_available[1] - 1 + j))
+                coordinate_neighbor = (
+                    (coordinate_available[0] - 1 + i), (coordinate_available[1] - 1 + j))
 
                 # neighbor must be in the canvas
                 neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < canvas_painting.shape[0])
@@ -249,18 +247,21 @@ def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_avail
                     if (neighborNotBlack):
 
                         # get colDiff between the neighbor and target colors, add it to the list
-                        neigborColor = canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]]
+                        neigborColor = canvas_painting[coordinate_neighbor[0],
+                                                       coordinate_neighbor[1]]
 
                         # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-                        colorDifference = numpy.subtract(rgb_requested_color, neigborColor)
-                        differenceSquared = numpy.multiply(colorDifference, colorDifference)
+                        colorDifference = numpy.subtract(
+                            rgb_requested_color, neigborColor)
+                        differenceSquared = numpy.multiply(
+                            colorDifference, colorDifference)
                         squaresSum = numpy.sum(differenceSquared)
                         euclidianDistanceAprox = squaresSum
 
                         list_neighbor_diffs[index] = euclidianDistanceAprox
                         index += 1
 
-        if (selection_mode == 0):
+        if (config.mode['CURRENT'] == 0):
             # check if the considered pixel has at least one valid neighbor
             if (index):
                 # return the minimum difference of all the neighbors
@@ -269,7 +270,7 @@ def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_avail
             else:
                 check = sys.maxsize
 
-        if (selection_mode == 1):
+        if (config.mode['CURRENT'] == 1):
             # check if the considered pixel has at least one valid neighbor
             if (index):
                 # return the minimum difference of all the neighbors
@@ -298,7 +299,8 @@ def paintToCanvas(requestedColor, requestedCoord):
     global workingCanvas
 
     # double check the the pixel is BLACK
-    isBlack = numpy.array_equal(workingCanvas[requestedCoord[0], requestedCoord[1]], BLACK)
+    isBlack = numpy.array_equal(
+        workingCanvas[requestedCoord[0], requestedCoord[1]], BLACK)
     if (isBlack):
 
         # the best position for requestedColor has been found color it
@@ -306,14 +308,12 @@ def paintToCanvas(requestedColor, requestedCoord):
 
         # remove that position from isAvailable and decrement the count
 
-        list_availabilty.remove((requestedCoord[0], requestedCoord[1]))        
+        list_availabilty.remove((requestedCoord[0], requestedCoord[1]))
         canvas_availabilty[requestedCoord] = False
         count_available -= 1
 
         coloredCount += 1
 
-        
-        
         # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
         for i in range(3):
             for j in range(3):
@@ -324,18 +324,25 @@ def paintToCanvas(requestedColor, requestedCoord):
                     continue
 
                 # calculate the neigbor's coordinates
-                coordinate_neighbor = ((requestedCoord[0] - 1 + i), (requestedCoord[1] - 1 + j))
+                coordinate_neighbor = (
+                    (requestedCoord[0] - 1 + i), (requestedCoord[1] - 1 + j))
 
                 # neighbor must be in the canvas
                 neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < workingCanvas.shape[0])
-                                    and (0 <= coordinate_neighbor[1] < workingCanvas.shape[1]))
+                                      and (0 <= coordinate_neighbor[1] < workingCanvas.shape[1]))
 
                 if (neighborIsInCanvas):
+                    print()
+                    print(coordinate_neighbor)
+                    print("in-canvas")
                     if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
+                        print("is-black")
                         if (not canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]]):
+                            print("not-already-avail")
 
                             list_availabilty.append(coordinate_neighbor)
-                            canvas_availabilty[coordinate_neighbor[0], coordinate_neighbor[1]] = True
+                            canvas_availabilty[coordinate_neighbor[0],
+                                               coordinate_neighbor[1]] = True
                             count_available += 1
 
     # collision
@@ -345,6 +352,18 @@ def paintToCanvas(requestedColor, requestedCoord):
     # print progress
     if (coloredCount % PRINT_RATE == 0):
         printCurrentCanvas()
+
+
+# converts a canvas into raw data for writing to a png
+def toRawOutput(canvas):
+
+    # converts the given canvas into a format that the PNG module can use to write a png
+    simpleCanvas = numpy.array(canvas, numpy.uint8)
+    transposedCanvas = numpy.transpose(simpleCanvas, (1, 0, 2))
+    flippedColors = numpy.flip(transposedCanvas, 2)
+    rawOutput = numpy.reshape(
+        flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
+    return rawOutput
 
 
 # prints the current state of workingCanvas as well as progress stats
@@ -368,13 +387,16 @@ def printCurrentCanvas(finalize=False):
         # write the png file
         name = (FILENAME + '.png')
         myFile = open(name, 'wb')
-        pngWriter.write(myFile, canvasTools.toRawOutput(workingCanvas))
+        pngWriter.write(myFile, toRawOutput(workingCanvas))
         myFile.close()
 
         # Info Print
         lastPrintTime = currentTime
         print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(
             coloredCount, count_available, (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
+    
+    if (config.painter['DEBUG_WAIT']):
+        time.sleep(3)
 
 
 if __name__ == '__main__':

@@ -9,16 +9,7 @@ from numba import njit
 BLACK = numpy.array([0, 0, 0], numpy.uint32)
 
 
-# converts a canvas into raw data for writing to a png
-def toRawOutput(canvas):
 
-    # converts the given canvas into a format that the PNG module can use to write a png
-    simpleCanvas = numpy.array(canvas, numpy.uint8)
-    transposedCanvas = numpy.transpose(simpleCanvas, (1, 0, 2))
-    flippedColors = numpy.flip(transposedCanvas, 2)
-    rawOutput = numpy.reshape(
-        flippedColors, (canvas.shape[1], canvas.shape[0] * 3))
-    return rawOutput
 
 
 # Consider the target location using the given selection MODE
