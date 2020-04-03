@@ -3,7 +3,7 @@ import numpy
 
 from numba import njit
 
-import os
+
 import sys
 import concurrent.futures
 import time
@@ -14,58 +14,45 @@ import config
 # =============================================================================
 # MACROS
 # =============================================================================
-FILENAME = "painting"
 
-SHUFFLE_COLORS = config.color['SHUFFLE']
-USE_MULTIPROCESSING = config.color['SHUFFLE']
-
-PRINT_RATE = config.painter['PRINT_RATE']
-LOCATIONS_PER_PAINTER = config.painter['LOCATIONS_PER_PAINTER']
-MIN_MULTI_WORKLOAD = config.painter['MIN_MULTI_WORKLOAD']
-MAX_PAINTERS = os.cpu_count() * 2
-
-COLOR_BIT_DEPTH = config.canvas['COLOR_BIT_DEPTH']
-CANVAS_SIZE = (config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT'])
-START_POINT = (config.canvas['START_X'], config.canvas['START_Y'])
-
-BLACK = numpy.array([0, 0, 0], numpy.uint32)
-INVALID_COORD = numpy.array([-1, -1])
+COLOR_BLACK = numpy.array([0, 0, 0], numpy.uint32)
+COORDINATE_INVALID = numpy.array([-1, -1])
 
 # =============================================================================
 # GLOBALS
 # =============================================================================
 
-# position in and the list of all colors to be placed
-colorIndex = 0
-colorCount = ((2**COLOR_BIT_DEPTH)**3)
-allColors = numpy.zeros([colorCount, 3], numpy.uint32)
+# empty list of all colors to be placed and an index for tracking position in the list
+list_all_colors = numpy.zeros([((2**config.canvas['COLOR_BIT_DEPTH'])**3), 3], numpy.uint32)
+index_all_colors = 0
 
 # used for ongoing speed calculation
-lastPrintTime = time.time()
+time_last_print = time.time()
 
 # tracked for informational printout / progress report
-collisionCount = 0
-coloredCount = 0
+count_collisions = 0
+count_placed_colors = 0
 
-# dictionary used for lookup of coordinate_available locations
-count_available = 0
+# canvas and list for tracking available coordinates
+canvas_availabilty = numpy.zeros([config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT']], numpy.bool)
 list_availabilty = []
-canvas_availabilty = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
-# holds the current state of the canvas
-workingCanvas = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
+count_available = 0
+
+# holds the current RGB state of the canvas
+canvas_RGB_painting = numpy.zeros([config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT'], 3], numpy.uint32)
 
 # writes data arrays as PNG image files
-pngWriter = png.Writer(CANVAS_SIZE[0], CANVAS_SIZE[1], greyscale=False)
+writer_PNG_author = png.Writer(config.canvas['CANVAS_WIDTH'], config.canvas['CANVAS_HEIGHT'], greyscale=False)
 
 # =============================================================================
 
 
 def main():
     # Global Access
-    global allColors
+    global list_all_colors
 
     # Setup
-    allColors = colorTools.generateColors(COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
+    list_all_colors = colorTools.generateColors(config.canvas['COLOR_BIT_DEPTH'], config.color['MULTIPROCESSING'], config.color['SHUFFLE'])
 
     # Work
     print("Painting Canvas...")
@@ -85,7 +72,7 @@ def paintCanvas():
     startPainting()
 
     # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
-    while(count_available and (colorIndex < allColors.shape[0])):
+    while(count_available and (index_all_colors < list_all_colors.shape[0])):
         continuePainting()
 
 
@@ -93,19 +80,19 @@ def paintCanvas():
 def startPainting():
 
     # Global Access
-    global colorIndex
+    global index_all_colors
     global count_available
     global list_availabilty
     global canvas_availabilty
-    global workingCanvas
-    global coloredCount
+    global canvas_RGB_painting
+    global count_placed_colors
 
     # Setup
-    targetColor = allColors[colorIndex]
+    targetColor = list_all_colors[index_all_colors]
 
     # draw the first color at the starting pixel
-    workingCanvas[START_POINT[0], START_POINT[1]] = targetColor
-    colorIndex += 1
+    canvas_RGB_painting[config.canvas['START_X'], config.canvas['START_Y']] = targetColor
+    index_all_colors += 1
 
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -117,17 +104,17 @@ def startPainting():
                 continue
 
             # calculate the neigbor's coordinates
-            coordinate_neighbor = ((START_POINT[0] - 1 + i), (START_POINT[1] - 1 + j))
+            coordinate_neighbor = ((config.canvas['START_X'] - 1 + i), (config.canvas['START_Y'] - 1 + j))
 
             # neighbor must be in the canvas
-            neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < workingCanvas.shape[0]) and (0 <= coordinate_neighbor[1] < workingCanvas.shape[1]))
+            neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < canvas_RGB_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_RGB_painting.shape[1]))
 
             if (neighborIsInCanvas):
-                if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
+                if (numpy.array_equal(canvas_RGB_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)):
                     markCoordinate_Available(coordinate_neighbor)
 
     # finish first pixel
-    coloredCount = 1
+    count_placed_colors = 1
     printCurrentCanvas(True)
 
 
@@ -135,32 +122,32 @@ def startPainting():
 def continuePainting():
 
     # Global Access
-    global colorIndex
+    global index_all_colors
     global count_available
     global list_availabilty
     global canvas_availabilty
-    global workingCanvas
-    global coloredCount
+    global canvas_RGB_painting
+    global count_placed_colors
 
     # Setup
     # if more than MIN_MULTI_WORKLOAD locations are coordinate_available, allow multiprocessing
-    if ((count_available > MIN_MULTI_WORKLOAD) and USE_MULTIPROCESSING):
+    if ((count_available > config.painter['MIN_MULTI_WORKLOAD']) and config.painter['MULTIPROCESSING']):
         painterManager = concurrent.futures.ProcessPoolExecutor()
         painters = []
 
         # cap the number of workers so that there are at least LOCATIONS_PER_PAINTER free locations per worker
         # this keeps the number of collisions down
         # loop over each one
-        for _ in range(min(((count_available//LOCATIONS_PER_PAINTER), MAX_PAINTERS))):
+        for _ in range(min(((count_available//config.painter['LOCATIONS_PER_PAINTER']), config.painter['MAX_PAINTERS']))):
 
-            if(len(allColors) > colorIndex):
+            if(len(list_all_colors) > index_all_colors):
                 # get the color to be placed
-                targetColor = allColors[colorIndex]
-                colorIndex += 1
+                targetColor = list_all_colors[index_all_colors]
+                index_all_colors += 1
 
                 # schedule a worker to find the best location for that color
                 neighborDifferences = numpy.zeros(8, numpy.uint32)
-                painters.append(painterManager.submit(getBestPositionForColor, targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas))
+                painters.append(painterManager.submit(getBestPositionForColor, targetColor, neighborDifferences, numpy.array(list_availabilty), canvas_RGB_painting))
 
         # as each worker completes
         for painter in concurrent.futures.as_completed(painters):
@@ -180,12 +167,12 @@ def continuePainting():
     # This is because the overhead of multithreading makes singlethreading better for small problems
     else:
         # get the color to be placed
-        targetColor = allColors[colorIndex]
-        colorIndex += 1
+        targetColor = list_all_colors[index_all_colors]
+        index_all_colors += 1
 
         # find the best location for that color
         neighborDifferences = numpy.zeros(8, numpy.uint32)
-        bestResult = getBestPositionForColor(targetColor, neighborDifferences, numpy.array(list_availabilty), workingCanvas)
+        bestResult = getBestPositionForColor(targetColor, neighborDifferences, numpy.array(list_availabilty), canvas_RGB_painting)
         resultColor = bestResult[0]
         resultCoord = bestResult[1]
 
@@ -201,7 +188,7 @@ def continuePainting():
 def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_available_coordinates, canvas_painting):
 
     # reset minimums
-    MinCoord = INVALID_COORD
+    MinCoord = COORDINATE_INVALID
     minDistance = sys.maxsize
 
     # for every coordinate_available position in the boundry, perform the check, keep the best position:
@@ -227,7 +214,7 @@ def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_avail
 
                 if (neighborIsInCanvas):
 
-                    neighborNotBlack = not numpy.array_equal(canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)
+                    neighborNotBlack = not numpy.array_equal(canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                     if (neighborNotBlack):
 
                         # get colDiff between the neighbor and target colors, add it to the list
@@ -272,21 +259,21 @@ def getBestPositionForColor(rgb_requested_color, list_neighbor_diffs, list_avail
 def paintToCanvas(requestedColor, requestedCoord):
 
     # Global Access
-    global collisionCount
-    global coloredCount
+    global count_collisions
+    global count_placed_colors
     global count_available
     global list_availabilty
     global canvas_availabilty
-    global workingCanvas
+    global canvas_RGB_painting
 
-    # double check the the pixel is BLACK
-    isBlack = numpy.array_equal(workingCanvas[requestedCoord[0], requestedCoord[1]], BLACK)
+    # double check the the pixel is COLOR_BLACK
+    isBlack = numpy.array_equal(canvas_RGB_painting[requestedCoord[0], requestedCoord[1]], COLOR_BLACK)
     if (isBlack):
 
         # the best position for requestedColor has been found color it, and mark it unavailable
-        workingCanvas[requestedCoord[0], requestedCoord[1]] = requestedColor
+        canvas_RGB_painting[requestedCoord[0], requestedCoord[1]] = requestedColor
         markCoordinate_Unavailable(requestedCoord)
-        coloredCount += 1
+        count_placed_colors += 1
 
         # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
         for i in range(3):
@@ -301,18 +288,18 @@ def paintToCanvas(requestedColor, requestedCoord):
                 coordinate_neighbor = ((requestedCoord[0] - 1 + i), (requestedCoord[1] - 1 + j))
 
                 # neighbor must be in the canvas
-                neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < workingCanvas.shape[0]) and (0 <= coordinate_neighbor[1] < workingCanvas.shape[1]))
+                neighborIsInCanvas = ((0 <= coordinate_neighbor[0] < canvas_RGB_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_RGB_painting.shape[1]))
 
                 if (neighborIsInCanvas):
-                    if (numpy.array_equal(workingCanvas[coordinate_neighbor[0], coordinate_neighbor[1]], BLACK)):
+                    if (numpy.array_equal(canvas_RGB_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)):
                         markCoordinate_Available(coordinate_neighbor)
 
     # collision
     else:
-        collisionCount += 1
+        count_collisions += 1
 
     # print progress
-    if (coloredCount % PRINT_RATE == 0):
+    if (count_placed_colors % config.painter['PRINT_RATE'] == 0):
         printCurrentCanvas()
 
 
@@ -350,33 +337,34 @@ def toRawOutput(canvas):
     return rawOutput
 
 
-# prints the current state of workingCanvas as well as progress stats
+# prints the current state of canvas_RGB_painting as well as progress stats
 def printCurrentCanvas(finalize=False):
 
     # Global Access
-    global lastPrintTime
+    global time_last_print
+    global writer_PNG_author
 
     # get elapsed time
     currentTime = time.time()
-    elapsed = currentTime - lastPrintTime
+    elapsed = currentTime - time_last_print
 
     # exclude duplicate printings
     if (elapsed > 0):
-        rate = PRINT_RATE/elapsed
+        rate = config.painter['PRINT_RATE']/elapsed
 
         # cancel (probably a duplicate)
         if (rate > 500) and not (finalize):
             return
 
         # write the png file
-        name = (FILENAME + '.png')
+        name = (config.painter["PAINTING_NAME"] + '.png')
         myFile = open(name, 'wb')
-        pngWriter.write(myFile, toRawOutput(workingCanvas))
+        writer_PNG_author.write(myFile, toRawOutput(canvas_RGB_painting))
         myFile.close()
 
         # Info Print
-        lastPrintTime = currentTime
-        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(coloredCount, count_available, (coloredCount * 100 / CANVAS_SIZE[0] / CANVAS_SIZE[1]), collisionCount, rate), end='\n')
+        time_last_print = currentTime
+        print("Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec.".format(count_placed_colors, count_available, (count_placed_colors * 100 / config.canvas['CANVAS_WIDTH'] / config.canvas['CANVAS_HEIGHT']), count_collisions, rate), end='\n')
 
     if (config.painter['DEBUG_WAIT']):
         time.sleep(3)

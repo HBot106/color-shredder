@@ -17,8 +17,11 @@ color = dict(
 painter = dict(
     LOCATIONS_PER_PAINTER = 50,
     MIN_MULTI_WORKLOAD = 200,
+    MULTIPROCESSING = True,
+    MAX_PAINTERS = (os.cpu_count() * 2),
     PRINT_RATE = 5,
-    DEBUG_WAIT = False
+    DEBUG_WAIT = False,
+    PAINTING_NAME = "painting"
 )
 
 canvas = dict(
