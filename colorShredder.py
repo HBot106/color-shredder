@@ -92,24 +92,28 @@ def startPainting():
     markValidNeighborsAvailable(coordinate_start_point)
 
 
-# continue the painting
+# continue the painting, manages multiple painters or a single painter dynamically
 def continuePainting():
 
     # Global Access
     global index_all_colors
 
     # Setup
-    # if more than MIN_MULTI_WORKLOAD locations are coordinate_available, allow multiprocessing
+    # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
+    # also check for config flag
     if ((count_available > config.painter['MIN_MULTI_WORKLOAD']) and config.painter['MULTIPROCESSING']):
         mutliprocessing_painter_manager = concurrent.futures.ProcessPoolExecutor()
         list_painter_work_queue = []
 
         # cap the number of workers so that there are at least LOCATIONS_PER_PAINTER free locations per worker
         # this keeps the number of collisions down
+        # limit the total possible workers to MAX_PAINTERS (twice the CPU count) to not add unnecessary overhead
         # loop over each one
         for _ in range(min(((count_available//config.painter['LOCATIONS_PER_PAINTER']), config.painter['MAX_PAINTERS']))):
 
+            # check that more colors are available
             if (index_all_colors < len(list_all_colors)):
+
                 # get the color to be placed
                 color_selected = list_all_colors[index_all_colors]
                 index_all_colors += 1
@@ -145,9 +149,8 @@ def continuePainting():
         # attempt to paint the color at the corresponding location
         paintToCanvas(color_selected, coordinate_selected)
 
+
 # finish the painting by using the same strategy but on the list of all colors that were not placed due to collisions
-
-
 def finishPainting():
     global index_collided_colors
 
@@ -164,10 +167,6 @@ def finishPainting():
 
 
 # Gives the best location among all avilable for the requested color; Also returns the color itself
-# # In other words, checks every coordinate_available location using considerPixelAt(), keeping track of the
-# # minimum (best/closest) value returned and the location associated with it, this location "coordinate_minumum"
-# # is where we will place the target color
-# @njit
 def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_coordinates, canvas_painting):
 
     # reset minimums
@@ -285,6 +284,7 @@ def paintToCanvas(requestedColor, requestedCoord):
         printCurrentCanvas()
 
 
+# tracks a neighborhood around a coordinate in the two availabilty data structures
 def markValidNeighborsAvailable(coordinate_requested):
 
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
@@ -379,9 +379,10 @@ def printCurrentCanvas(finalize=False):
         info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
         print(info_print.format(count_placed_colors, count_available, (count_placed_colors * 100 / config.canvas['CANVAS_WIDTH'] / config.canvas['CANVAS_HEIGHT']), count_collisions, painting_rate), end='\n')
 
+    # if debug flag set, slow down the painting process
     if (config.painter['DEBUG_WAIT']):
         time.sleep(config.painter['DEBUG_WAIT_TIME'])
 
-
+# python
 if __name__ == '__main__':
     main()
