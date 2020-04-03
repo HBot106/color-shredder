@@ -19,15 +19,16 @@ painter = dict(
     MIN_MULTI_WORKLOAD = 200,
     MULTIPROCESSING = True,
     MAX_PAINTERS = (os.cpu_count() * 2),
-    PRINT_RATE = 5,
+    PRINT_RATE = 10,
     DEBUG_WAIT = False,
+    DEBUG_WAIT_TIME = 1,
     PAINTING_NAME = "painting"
 )
 
 canvas = dict(
-    COLOR_BIT_DEPTH = 6,
-    CANVAS_WIDTH = 32,
-    CANVAS_HEIGHT = 32,
-    START_X = 16,
-    START_Y = 16
+    COLOR_BIT_DEPTH = 3,
+    CANVAS_WIDTH = 64,
+    CANVAS_HEIGHT = 64,
+    START_X = 32,
+    START_Y = 32
 )
