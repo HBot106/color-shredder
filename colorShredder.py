@@ -1,6 +1,5 @@
 import png
 import numpy
-from numba import njit
 
 import sys
 import concurrent.futures
