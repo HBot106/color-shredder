@@ -1,5 +1,6 @@
 import png
 import numpy
+import numba
 
 import sys
 import concurrent.futures
@@ -120,7 +121,7 @@ def continuePainting():
 
                 # schedule a worker to find the best location for that color
                 list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting))
+                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.mode['GET_BEST_POSITION_MODE']))
 
         # as each worker completes
         for painter_worker in concurrent.futures.as_completed(list_painter_work_queue):
@@ -144,7 +145,7 @@ def continuePainting():
 
         # find the best location for that color
         list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-        coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting)[1]
+        coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.mode['GET_BEST_POSITION_MODE'])[1]
 
         # attempt to paint the color at the corresponding location
         paintToCanvas(color_selected, coordinate_selected)
@@ -160,25 +161,25 @@ def finishPainting():
 
     # find the best location for that color
     list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-    coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting)[1]
+    coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.mode['GET_BEST_POSITION_MODE'])[1]
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(color_selected, coordinate_selected)
 
 
 # Gives the best location among all avilable for the requested color; Also returns the color itself
-def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_coordinates, canvas_painting):
+def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_coordinates, canvas_painting, mode_selected):
 
     # reset minimums
     coordinate_minumum = COORDINATE_INVALID
     distance_minumum = sys.maxsize
 
     # for every coordinate_available position in the boundry, perform the check, keep the best position:
-    for coordinate_available in list_available_coordinates:
+    for index in range(list_available_coordinates.shape[0]):
 
         index_neighbor_diffs = 0
         list_neighbor_diffs.fill(0)
-        color_neighborhood_average = canvas_painting[coordinate_available[0], coordinate_available[1]]
+        color_neighborhood_average = canvas_painting[list_available_coordinates[index][0], list_available_coordinates[index][1]]
 
         # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
         for i in range(3):
@@ -190,7 +191,7 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
                     continue
 
                 # calculate the neigbor's coordinates
-                coordinate_neighbor = ((coordinate_available[0] - 1 + i), (coordinate_available[1] - 1 + j))
+                coordinate_neighbor = ((list_available_coordinates[index][0] - 1 + i), (list_available_coordinates[index][1] - 1 + j))
 
                 # neighbor must be in the canvas
                 bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_painting.shape[1]))
@@ -213,7 +214,7 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
                         index_neighbor_diffs += 1
 
         # check operational mode and find the resulting distance
-        if (config.mode['CURRENT'] == 0):
+        if (mode_selected == 0):
             # check if the considered pixel has at least one valid neighbor
             if (index_neighbor_diffs):
                 # return the minimum difference of all the neighbors
@@ -222,7 +223,7 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
             else:
                 distance_found = sys.maxsize
 
-        elif (config.mode['CURRENT'] == 1):
+        elif (mode_selected == 1):
             # check if the considered pixel has at least one valid neighbor
             if (index_neighbor_diffs):
                 # return the minimum difference of all the neighbors
@@ -231,12 +232,13 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
             else:
                 distance_found = sys.maxsize
 
-        elif (config.mode['CURRENT'] == 2):
+        elif (mode_selected == 2):
             # check if the considered pixel has at least one valid neighbor
             if (index_neighbor_diffs):
 
-                index_array = numpy.array([index_neighbor_diffs, index_neighbor_diffs, index_neighbor_diffs])
-                color_neighborhood_average = numpy.divide(color_neighborhood_average, index_array)
+                color_neighborhood_average[0] = color_neighborhood_average[0]/index_neighbor_diffs
+                color_neighborhood_average[1] = color_neighborhood_average[1]/index_neighbor_diffs
+                color_neighborhood_average[2] = color_neighborhood_average[2]/index_neighbor_diffs
 
                 # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
                 color_difference = numpy.subtract(color_selected, color_neighborhood_average)
@@ -249,9 +251,17 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
         # if it is the best so far save the value and its location
         if (distance_found < distance_minumum):
             distance_minumum = distance_found
-            coordinate_minumum = coordinate_available
+            coordinate_minumum = list_available_coordinates[index]
 
     return (color_selected, coordinate_minumum)
+
+
+# Enable Numba acceleration on getBestPositionForColor()
+if config.mode['BOOL_USE_NUMBA']:
+    print("Using numba")
+    getBestPositionForColor = numba.njit()(getBestPositionForColor)
+else:
+    print("Using pure python")
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -382,6 +392,7 @@ def printCurrentCanvas(finalize=False):
     # if debug flag set, slow down the painting process
     if (config.painter['DEBUG_WAIT']):
         time.sleep(config.painter['DEBUG_WAIT_TIME'])
+
 
 # python
 if __name__ == '__main__':
