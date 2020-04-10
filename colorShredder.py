@@ -6,6 +6,7 @@ import sys
 import concurrent.futures
 import time
 
+
 import colorTools
 import config
 
@@ -19,6 +20,7 @@ COORDINATE_INVALID = numpy.array([-1, -1])
 # =============================================================================
 # GLOBALS
 # =============================================================================
+
 
 # empty list of all colors to be placed and an index for tracking position in the list
 list_all_colors = numpy.zeros([((2**config.canvas['COLOR_BIT_DEPTH'])**3), 3], numpy.uint32)
