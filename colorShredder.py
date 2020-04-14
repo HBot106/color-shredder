@@ -35,7 +35,7 @@ count_collisions = 0
 count_placed_colors = 0
 
 # canvas and list for tracking available coordinates
-canvas_availabilty = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.bool)
+canvas_availability = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.bool)
 list_availabilty = []
 count_available = 0
 
@@ -196,7 +196,7 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
                 bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_painting.shape[1]))
                 if (bool_neighbor_in_canvas):
 
-                    # neighbor must not be black (don't include uncolored neighbors)
+                    # neighbor must not be black
                     bool_neighbor_not_black = not numpy.array_equal(canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                     if (bool_neighbor_not_black):
 
@@ -322,12 +322,12 @@ def markCoordinateAvailable(coordinate_requested):
     # Global Access
     global count_available
     global list_availabilty
-    global canvas_availabilty
+    global canvas_availability
 
     # Check the coordinate is not already being tracked
-    if (not canvas_availabilty[coordinate_requested[0], coordinate_requested[1]]):
+    if (not canvas_availability[coordinate_requested[0], coordinate_requested[1]]):
         list_availabilty.append(coordinate_requested)
-        canvas_availabilty[coordinate_requested[0], coordinate_requested[1]] = True
+        canvas_availability[coordinate_requested[0], coordinate_requested[1]] = True
         count_available += 1
 
 
@@ -337,13 +337,66 @@ def markCoordinateUnavailable(coordinate_requested):
     # Global Access
     global count_available
     global list_availabilty
-    global canvas_availabilty
+    global canvas_availability
 
     # Check the coordinate is already being tracked
-    if (canvas_availabilty[coordinate_requested[0], coordinate_requested[1]]):
+    if (canvas_availability[coordinate_requested[0], coordinate_requested[1]]):
         list_availabilty.remove((coordinate_requested[0], coordinate_requested[1]))
-        canvas_availabilty[coordinate_requested[0], coordinate_requested[1]] = False
+        canvas_availability[coordinate_requested[0], coordinate_requested[1]] = False
         count_available -= 1
+
+
+# Track the given neighbor as available
+#   if the location is already tracked, un-track it first, then re-track it.
+#   this prevents duplicate availble locations, and updates the neighborhood color
+# Tracking consists of:
+#   inserting a new nearest_neighbor into the spatial_index_of_neighborhood_color_holding_location,
+#   and flagging the associated location in the availabilityIndex
+def trackNeighbor(location):
+
+    # Globals
+    global spatial_index_of_neighborhood_color_holding_location
+    global canvas_neighborhood_color
+    global count_available
+
+    # if the neighbor is already in the spatial_index_of_neighborhood_color_holding_location, then it needs to be deleted
+    # otherwise there will be duplicate avialability with outdated neighborhood colors.
+    if (canvas_availability[location[0], location[1]]):
+        rgb_neighborhood_color = canvas_neighborhood_color[location[0], location[1]]
+        spatial_index_of_neighborhood_color_holding_location.delete(0, colorTools.getColorBoundingBox(rgb_neighborhood_color))
+
+        # flag the location as no longer being available
+        canvas_availability[location[0], location[1]] = False
+
+    # get the newest neighborhood color
+    rgb_neighborhood_color = canvasTools.getAverageColor(location, canvas_actual_color)
+
+    # update the location in the availability index
+    canvas_availability[location[0]][location[1]] = True
+    canvas_neighborhood_color[location[0]][location[1]] = rgb_neighborhood_color
+
+    # add the location to the spatial_index_of_neighborhood_color_holding_location
+    spatial_index_of_neighborhood_color_holding_location.insert(0, colorTools.getColorBoundingBox(rgb_neighborhood_color), location)
+    count_available += 1
+
+
+# Un-Track the given nearest_neighbor
+# Un-Tracking Consists of:
+#   removing the given nearest_neighbor from the spatial_index_of_neighborhood_color_holding_location,
+#   and Un-Flagging the associated location in the availabilityIndex
+def unTrackNeighbor(nearest_neighbor):
+
+    locationID = nearest_neighbor.id
+    coordinate_nearest_neighbor = nearest_neighbor.object
+    bbox_neighborhood_color = nearest_neighbor.bbox
+
+    # remove object from the spatial_index_of_neighborhood_color_holding_location
+    global count_placed_colors
+    spatial_index_of_neighborhood_color_holding_location.delete(locationID, bbox_neighborhood_color)
+    count_placed_colors += 1
+
+    # flag the location as no longer being available
+    canvas_availability[coordinate_nearest_neighbor[0], coordinate_nearest_neighbor[1]] = False
 
 
 # converts a canvas into raw data for writing to a png
@@ -354,6 +407,51 @@ def toRawOutput(canvas):
     canvas_transposed = numpy.transpose(canvas_8bit, (1, 0, 2))
     canvas_flipped = numpy.flip(canvas_transposed, 2)
     return numpy.reshape(canvas_flipped, (canvas.shape[1], canvas.shape[0] * 3))
+
+
+def getColorBoundingBox(rgb_requested_color):
+    if (rgb_requested_color.size == 3):
+        return (rgb_requested_color[0], rgb_requested_color[1], rgb_requested_color[2], rgb_requested_color[0], rgb_requested_color[1], rgb_requested_color[2])
+    else:
+        print("getColorBoundingBox given bad value")
+        print("given:")
+        print(rgb_requested_color)
+        exit()
+
+
+
+# get the average color of a given location
+def getAverageColor(coordinate_requested, canvas_actual_color):
+
+    index = 0
+    color_neighborhood_average = COLOR_BLACK
+
+    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
+    for i in range(3):
+        for j in range(3):
+
+            # this pixel is the location being considered;
+            # it is not a neigbor, go to the next one
+            if (i == 1 and j == 1):
+                continue
+
+            # calculate the neigbor's coordinates
+            coordinate_neighbor = ((coordinate_requested[0] - 1 + i), (coordinate_requested[1] - 1 + j))
+
+            # neighbor must be in the canvas
+            bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_color_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_color_painting.shape[1]))
+            if (bool_neighbor_in_canvas):
+
+                # neighbor must not be black
+                bool_neighbor_is_black = numpy.array_equal(canvas_color_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
+                if (not bool_neighbor_is_black):
+                    neigborColor = canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]]
+                    color_neighborhood_average = numpy.add(color_neighborhood_average, neigborColor)
+
+    if(index):
+        return color_neighborhood_average
+    else:
+        return BLACK
 
 
 # prints the current state of canvas_color_painting as well as progress stats
