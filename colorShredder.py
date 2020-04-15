@@ -75,29 +75,14 @@ count_available_locations = 0
 
 # =============================================================================
 def main():
-    # Setup
-    globalSetup()
-
-    # Work
-    print("Painting Canvas...")
-    time_of_start = time.time()
-    paintCanvas()
-    time_elapsed = time.time() - time_of_start
-
-    # Final Print Authoring
-    printCurrentCanvas(True)
-    print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
-
-def globalSetup():
-
     # generate all colors in the color space and shuffle them
     global list_of_all_colors
     list_of_all_colors = colorTools.generateColors(COLOR_BIT_DEPTH, USE_MULTIPROCESSING, SHUFFLE_COLORS)
 
-
-# manages painting of the canvas
-def paintCanvas():
-
+    # Work
+    print("Painting Canvas...")
+    time_of_start = time.time()
+    
     # draw the first color at the starting pixel
     startPainting()
 
@@ -107,6 +92,12 @@ def paintCanvas():
     while(spatial_index_of_neighborhood_color_holding_location.count([0, 0, 0, 256, 256, 256]) and (count_colors_taken < TOTAL_NUMBER_OF_COLORS)):
         continuePainting()
 
+
+    time_elapsed = time.time() - time_of_start
+
+    # Final Print Authoring
+    printCurrentCanvas(True)
+    print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
 
 # start the painting, by placing the first target color
 def startPainting():
