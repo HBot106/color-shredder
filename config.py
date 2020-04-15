@@ -13,7 +13,8 @@ MODES = dict(
 
 DEFAULT_MODE = dict(
     GET_BEST_POSITION_MODE = MODES['DEFAULT'],
-    USE_NUMBA = False
+    USE_NUMBA = False,
+    USE_RTREE = False
 )
 
 DEFAULT_COLOR = dict(
@@ -49,6 +50,7 @@ CONFIG_PARSER = argparse.ArgumentParser(
 )
 CONFIG_PARSER.add_argument('-m', action='store_true', help='enable multiprocessing for painting', default=DEFAULT_PAINTER['MULTIPROCESSING'])
 CONFIG_PARSER.add_argument('-j', action='store_true', help='enable just in time compilation for painting', default=DEFAULT_MODE['USE_NUMBA'])
+CONFIG_PARSER.add_argument('-t', action='store_true', help='use rTree for painting', default=DEFAULT_MODE['USE_RTREE'])
 CONFIG_PARSER.add_argument('-c', metavar='depth', help='color space bit depth', default=DEFAULT_COLOR['COLOR_BIT_DEPTH'], type=int)
 CONFIG_PARSER.add_argument('-d', metavar='dim', nargs=2, help='dimensions of the output image', default=[DEFAULT_CANVAS['CANVAS_WIDTH'], DEFAULT_CANVAS['CANVAS_HEIGHT']], type=int)
 CONFIG_PARSER.add_argument('-s', metavar='coord', nargs=2, help='coordinates of the starting location', default=[DEFAULT_CANVAS['START_X'], DEFAULT_CANVAS['START_Y']], type=int)
