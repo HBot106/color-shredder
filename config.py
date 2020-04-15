@@ -1,6 +1,8 @@
 import os
 import numpy
 import argparse
+import rtree
+
 
 MODES = dict(
     MIN = 1,
@@ -54,3 +56,14 @@ CONFIG_PARSER.add_argument('-f', metavar='filename', help='name of output image'
 CONFIG_PARSER.add_argument('-r', metavar='rate', help='info print and update painting at this pixel rate', default=DEFAULT_PAINTER['PRINT_RATE'], type=int)
 CONFIG_PARSER.add_argument('-q', metavar='strategy', choices=[1, 2, 3], help='strategy for choosing best location: min:0, avg:1, or quick:2', default=DEFAULT_MODE['GET_BEST_POSITION_MODE'], type=int)
 PARSED_ARGS = CONFIG_PARSER.parse_args()
+
+
+# rTree properties
+index_properties = rtree.index.Property()
+index_properties.storage = rtree.index.RT_Memory
+index_properties.dimension = 3
+index_properties.variant = rtree.index.RT_Star
+index_properties.near_minimum_overlap_factor = 32
+index_properties.leaf_capacity = 32
+index_properties.index_capacity = 32
+index_properties.fill_factor = 0.5

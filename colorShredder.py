@@ -1,6 +1,7 @@
 import png
 import numpy
 import numba
+import rtree
 
 import sys
 import concurrent.futures
@@ -40,7 +41,13 @@ list_availabilty = []
 count_available = 0
 
 # holds the current RGB state of the canvas
-canvas_color_painting = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
+canvas_actual_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
+
+# holds the average color around each canvas location
+canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
+
+# rTree 
+spatial_index_of_neighborhood_color_holding_location = rtree.index.Index(properties=config.index_properties)
 
 # writes data arrays as PNG image files
 png_author = png.Writer(config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], greyscale=False)
@@ -120,7 +127,7 @@ def continuePainting():
 
                 # schedule a worker to find the best location for that color
                 list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.PARSED_ARGS.q))
+                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q))
 
         # as each worker completes
         for painter_worker in concurrent.futures.as_completed(list_painter_work_queue):
@@ -144,7 +151,7 @@ def continuePainting():
 
         # find the best location for that color
         list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-        coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.PARSED_ARGS.q)[1]
+        coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
         # attempt to paint the color at the corresponding location
         paintToCanvas(color_selected, coordinate_selected)
@@ -160,7 +167,7 @@ def finishPainting():
 
     # find the best location for that color
     list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-    coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_color_painting, config.PARSED_ARGS.DEFAULT_MODE['GET_BEST_POSITION_MODE'])[1]
+    coordinate_selected = getBestPositionForColor(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.DEFAULT_MODE['GET_BEST_POSITION_MODE'])[1]
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(color_selected, coordinate_selected)
@@ -266,14 +273,14 @@ def paintToCanvas(requestedColor, requestedCoord):
     # Global Access
     global count_collisions
     global count_placed_colors
-    global canvas_color_painting
+    global canvas_actual_color
 
     # double check the the pixel is COLOR_BLACK
-    bool_coordinate_is_black = numpy.array_equal(canvas_color_painting[requestedCoord[0], requestedCoord[1]], COLOR_BLACK)
+    bool_coordinate_is_black = numpy.array_equal(canvas_actual_color[requestedCoord[0], requestedCoord[1]], COLOR_BLACK)
     if (bool_coordinate_is_black):
 
         # the best position for requestedColor has been found color it, and mark it unavailable
-        canvas_color_painting[requestedCoord[0], requestedCoord[1]] = requestedColor
+        canvas_actual_color[requestedCoord[0], requestedCoord[1]] = requestedColor
         markCoordinateUnavailable(requestedCoord)
         count_placed_colors += 1
 
@@ -307,11 +314,11 @@ def markValidNeighborsAvailable(coordinate_requested):
             coordinate_neighbor = ((coordinate_requested[0] - 1 + i), (coordinate_requested[1] - 1 + j))
 
             # neighbor must be in the canvas
-            bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_color_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_color_painting.shape[1]))
+            bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_actual_color.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_actual_color.shape[1]))
             if (bool_neighbor_in_canvas):
 
                 # neighbor must also be black (not already colored)
-                bool_neighbor_is_black = numpy.array_equal(canvas_color_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
+                bool_neighbor_is_black = numpy.array_equal(canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                 if (bool_neighbor_is_black):
                     markCoordinateAvailable(coordinate_neighbor)
 
@@ -363,20 +370,20 @@ def trackNeighbor(location):
     # otherwise there will be duplicate avialability with outdated neighborhood colors.
     if (canvas_availability[location[0], location[1]]):
         rgb_neighborhood_color = canvas_neighborhood_color[location[0], location[1]]
-        spatial_index_of_neighborhood_color_holding_location.delete(0, colorTools.getColorBoundingBox(rgb_neighborhood_color))
+        spatial_index_of_neighborhood_color_holding_location.delete(0, getColorBoundingBox(rgb_neighborhood_color))
 
         # flag the location as no longer being available
         canvas_availability[location[0], location[1]] = False
 
     # get the newest neighborhood color
-    rgb_neighborhood_color = canvasTools.getAverageColor(location, canvas_actual_color)
+    rgb_neighborhood_color = getAverageColor(location, canvas_actual_color)
 
     # update the location in the availability index
     canvas_availability[location[0]][location[1]] = True
     canvas_neighborhood_color[location[0]][location[1]] = rgb_neighborhood_color
 
     # add the location to the spatial_index_of_neighborhood_color_holding_location
-    spatial_index_of_neighborhood_color_holding_location.insert(0, colorTools.getColorBoundingBox(rgb_neighborhood_color), location)
+    spatial_index_of_neighborhood_color_holding_location.insert(0, getColorBoundingBox(rgb_neighborhood_color), location)
     count_available += 1
 
 
@@ -439,11 +446,11 @@ def getAverageColor(coordinate_requested, canvas_actual_color):
             coordinate_neighbor = ((coordinate_requested[0] - 1 + i), (coordinate_requested[1] - 1 + j))
 
             # neighbor must be in the canvas
-            bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_color_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_color_painting.shape[1]))
+            bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_actual_color.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_actual_color.shape[1]))
             if (bool_neighbor_in_canvas):
 
                 # neighbor must not be black
-                bool_neighbor_is_black = numpy.array_equal(canvas_color_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
+                bool_neighbor_is_black = numpy.array_equal(canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                 if (not bool_neighbor_is_black):
                     neigborColor = canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]]
                     color_neighborhood_average = numpy.add(color_neighborhood_average, neigborColor)
@@ -451,10 +458,10 @@ def getAverageColor(coordinate_requested, canvas_actual_color):
     if(index):
         return color_neighborhood_average
     else:
-        return BLACK
+        return COLOR_BLACK
 
 
-# prints the current state of canvas_color_painting as well as progress stats
+# prints the current state of canvas_actual_color as well as progress stats
 def printCurrentCanvas(finalize=False):
 
     if (config.PARSED_ARGS.r == 0) and not (finalize):
@@ -475,7 +482,7 @@ def printCurrentCanvas(finalize=False):
         # write the png file
         painting_output_name = (config.PARSED_ARGS.f + '.png')
         painting_output_file = open(painting_output_name, 'wb')
-        png_author.write(painting_output_file, toRawOutput(canvas_color_painting))
+        png_author.write(painting_output_file, toRawOutput(canvas_actual_color))
         painting_output_file.close()
 
         # Info Print
