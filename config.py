@@ -59,6 +59,17 @@ CONFIG_PARSER.add_argument('-r', metavar='rate', help='info print and update pai
 CONFIG_PARSER.add_argument('-q', metavar='strategy', choices=[1, 2, 3], help='strategy for choosing best location: min:0, avg:1, or quick:2', default=DEFAULT_MODE['GET_BEST_POSITION_MODE'], type=int)
 PARSED_ARGS = CONFIG_PARSER.parse_args()
 
+print("")
+if (PARSED_ARGS.t and PARSED_ARGS.m):
+    print("Cannot use -m and -t together")
+    quit()
+if (PARSED_ARGS.t and PARSED_ARGS.j):
+    print("Cannot use -j and -t together")
+    quit()
+if (PARSED_ARGS.t and PARSED_ARGS.q):
+    print("When using the rTree, shredder can only utilize the quick strategy")
+    quit()
+
 
 # rTree properties
 index_properties = rtree.index.Property()

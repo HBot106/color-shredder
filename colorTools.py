@@ -2,131 +2,141 @@ import concurrent.futures
 import time
 import numpy
 
+# BLACK reference
+BLACK = numpy.array([0, 0, 0], numpy.uint32)
+
 
 # get the squared difference to another color
 def getColorDiff(targetColor_A, targetColor_B):
 
+    rgb_color_difference = numpy.array([0, 0, 0], numpy.uint32)
+    rgb_difference_squared = numpy.array([0, 0, 0], numpy.uint32)
+    sum_of_squared_values = numpy.uint32
+
     # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-    colorDifference = numpy.subtract(targetColor_A, targetColor_B)
-    differenceSquared = numpy.multiply(colorDifference, colorDifference)
-    squaresSum = numpy.sum(differenceSquared)
+    rgb_color_difference = numpy.subtract(targetColor_A, targetColor_B)
+    rgb_difference_squared = numpy.multiply(rgb_color_difference, rgb_color_difference)
+    sum_of_squared_values = numpy.sum(rgb_difference_squared)
 
     # to get distance the sqrt must be taken, but we don't care about the actual distance, just relative distances, so we skip the sqrt for a constant runtime improvement
-    # return numpy.sqrt(squaresSum)
-    return squaresSum
+    # return numpy.sqrt(sum_of_squared_values)
+    return sum_of_squared_values
 
 
 # generate all colors of the color space, then shuffle the resulting array
-def generateColors(COLOR_BIT_DEPTH, useMulti, useShuffle):
+def generateColors(COLOR_BIT_DEPTH, use_multiprocessing, use_shuffle):
 
     # Setup, how many colors are needed?
-    valuesPerChannel = 2**COLOR_BIT_DEPTH
-    totalColors = valuesPerChannel**3
-    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
+    values_per_color_channel = 2**COLOR_BIT_DEPTH
+    count_total_colors = values_per_color_channel**3
+    list_of_all_colors = numpy.zeros([count_total_colors, 3], numpy.uint32)
 
     # Info Print
-    beginTime = time.time()
-    print("Generating colors... {:3.2f}".format(
-        0) + '%' + " complete.", end='\r')
+    time_start = time.time()
+    print("Generating colors... {:3.2f}".format(0) + '%' + " complete.", end='\r')
 
     # choose single or multi processing
-    if (useMulti):
-        allColors = generateColorsMulti(
-            COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
+    if (use_multiprocessing):
+        list_of_all_colors = generateColorsMulti(COLOR_BIT_DEPTH, values_per_color_channel, count_total_colors)
     else:
-        allColors = generateColorsSingle(
-            COLOR_BIT_DEPTH, valuesPerChannel, totalColors)
+        list_of_all_colors = generateColorsSingle(COLOR_BIT_DEPTH, values_per_color_channel, count_total_colors)
 
     # Info Print
-    elapsedTime = time.time() - beginTime
-    print("Generating colors... {:3.2f}".format(
-        100) + '%' + " complete.", end='\n')
-    print("Generated {} colors in {:3.2f} seconds.".format(
-        totalColors, elapsedTime))
+    time_elapsed = time.time() - time_start
+    print("Generating colors... {:3.2f}".format(100) + '%' + " complete.", end='\n')
+    print("Generated {} colors in {:3.2f} seconds.".format(count_total_colors, time_elapsed))
 
     # Suffle the color list, so it is in a random order
-    if (useShuffle):
-        beginTime = time.time()
+    if (use_shuffle):
+        time_start = time.time()
         print("Shuffling colors...", end='\r')
-        numpy.random.shuffle(allColors)
-        elapsedTime = time.time() - beginTime
-        print("Shuffled {} colors in {:3.2f} seconds.".format(
-            totalColors, elapsedTime))
+        numpy.random.shuffle(list_of_all_colors)
+        time_elapsed = time.time() - time_start
+        print("Shuffled {} colors in {:3.2f} seconds.".format(count_total_colors, time_elapsed))
 
-    return allColors
+    return list_of_all_colors
 
 
 # generate all colors of the color space, don't use multiprocessing
-def generateColorsSingle(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
+def generateColorsSingle(COLOR_BIT_DEPTH, values_per_color_channel, count_total_colors):
 
     # Setup
-    workingColor = numpy.zeros([1, 3], numpy.uint32)
-    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
-    index = 0
+    rgb_working_color = numpy.zeros([1, 3], numpy.uint32)
+    list_of_all_colors = numpy.zeros([count_total_colors, 3], numpy.uint32)
+    index_in_color_list = 0
 
     # Generate all colors by looping over all r,g,b values
-    for r in range(valuesPerChannel):
-        for g in range(valuesPerChannel):
-            for b in range(valuesPerChannel):
+    for r in range(values_per_color_channel):
+        for g in range(values_per_color_channel):
+            for b in range(values_per_color_channel):
                 # insert the color in its place
-                workingColor = numpy.array([
-                    int((r / valuesPerChannel) * 255),
-                    int((g / valuesPerChannel) * 255),
-                    int((b / valuesPerChannel) * 255)], numpy.uint32)
-                allColors[index] = workingColor
-                index += 1
+                rgb_working_color = numpy.array([
+                    int((r / values_per_color_channel) * 255),
+                    int((g / values_per_color_channel) * 255),
+                    int((b / values_per_color_channel) * 255)], numpy.uint32)
+                list_of_all_colors[index_in_color_list] = rgb_working_color
+                index_in_color_list += 1
 
         # Info Print
-        print("Generating colors... {:3.2f}".format(
-            100*r/valuesPerChannel) + '%' + " complete.", end='\r')
+        print("Generating colors... {:3.2f}".format(100*r/values_per_color_channel) + '%' + " complete.", end='\r')
 
     # generation completed
-    return allColors
+    return list_of_all_colors
 
 
 # generate all colors of the color space, use multiprocessing
-def generateColorsMulti(COLOR_BIT_DEPTH, valuesPerChannel, totalColors):
+def generateColorsMulti(COLOR_BIT_DEPTH, values_per_color_channel, count_total_colors):
 
     # Setup
-    allColors = numpy.zeros([totalColors, 3], numpy.uint32)
+    list_of_all_colors = numpy.zeros([count_total_colors, 3], numpy.uint32)
 
     # using multiprocessing kick off a worker for each red value in range of red values
-    generator = concurrent.futures.ProcessPoolExecutor()
-    constantReds = [generator.submit(
-        generateColors_worker, red, valuesPerChannel) for red in range(valuesPerChannel)]
+    process_pool_executor = concurrent.futures.ProcessPoolExecutor()
+    process_pool_results = [process_pool_executor.submit(generateColors_worker, red, values_per_color_channel) for red in range(values_per_color_channel)]
 
     # for each worker as it completes, insert its results into the array
     # the order that this happens does not matter as the array will be shuffled anywasys
-    index = 0
-    for constantRed in concurrent.futures.as_completed(constantReds):
-        allColors[index * (valuesPerChannel**2): (index + 1)
-                  * (valuesPerChannel**2)] = constantRed.result()
-        index += 1
-        print("Generating colors... {:3.2f}".format(
-            100*index/valuesPerChannel) + '%' + " complete.", end='\r')
+    index_in_color_list = 0
+    for list_of_constant_red_colors in concurrent.futures.as_completed(process_pool_results):
+        list_of_all_colors[index_in_color_list * (values_per_color_channel**2): (index_in_color_list + 1) * (values_per_color_channel**2)] = list_of_constant_red_colors.result()
+        index_in_color_list += 1
+        print("Generating colors... {:3.2f}".format(100*index_in_color_list/values_per_color_channel) + '%' + " complete.", end='\r')
 
     # generation completed
-    return allColors
+    return list_of_all_colors
 
 
 # for a given red value generate every color possible with the remaing green and blue values
-def generateColors_worker(r, valuesPerChannel):
+def generateColors_worker(r, values_per_color_channel):
 
     # Setup
-    workerColors = numpy.zeros([valuesPerChannel**2, 3], numpy.uint32)
-    workingColor = numpy.zeros([1, 3], numpy.uint32)
-    index = 0
+    list_of_constant_red_colors = numpy.zeros([values_per_color_channel**2, 3], numpy.uint32)
+    rgb_working_color = numpy.zeros([1, 3], numpy.uint32)
+    index_in_color_list = 0
 
     # loop over every value of green and blue producing each color that can have the given red value
-    for g in range(valuesPerChannel):
-        for b in range(valuesPerChannel):
+    for g in range(values_per_color_channel):
+        for b in range(values_per_color_channel):
             # insert the color in its place
-            workingColor = numpy.array([
-                    int((r / valuesPerChannel) * 255),
-                    int((g / valuesPerChannel) * 255),
-                    int((b / valuesPerChannel) * 255)], numpy.uint32)
-            workerColors[index] = workingColor
-            index += 1
+            rgb_working_color = numpy.array([
+                numpy.uint32((r / values_per_color_channel) * 255),
+                numpy.uint32((g / values_per_color_channel) * 255),
+                numpy.uint32((b / values_per_color_channel) * 255)], numpy.uint32)
+            list_of_constant_red_colors[index_in_color_list] = rgb_working_color
+            index_in_color_list += 1
 
     # return all colors with the given red value
-    return workerColors
+    return list_of_constant_red_colors
+
+# turn a given color into its bounding box representation
+# numpy[r,g,b] -> (r,r,g,g,b,b)
+
+
+def getColorBoundingBox(rgb_requested_color):
+    if (rgb_requested_color.size == 3):
+        return (rgb_requested_color[0], rgb_requested_color[1], rgb_requested_color[2], rgb_requested_color[0], rgb_requested_color[1], rgb_requested_color[2])
+    else:
+        print("getColorBoundingBox given bad value")
+        print("given:")
+        print(rgb_requested_color)
+        exit()
