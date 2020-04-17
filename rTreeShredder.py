@@ -55,12 +55,12 @@ spatial_index_of_neighborhood_color_holding_location = rTree.Index(properties=co
 
 # CANVASES
 # Canvases are 2d arrays that are the size of the output painting
-# 
+#
 # holds boolean availability for each canvas location
 canvas_location_availability = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.bool)
 # holds the ID/index (for the spatial index) of each canvas location
 canvas_location_id = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1]], numpy.uint32)
-# holds the current state of the painting 
+# holds the current state of the painting
 canvas_actual_color = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
 # holds the average color around each canvas location
 canvas_neighborhood_color = numpy.zeros([CANVAS_SIZE[0], CANVAS_SIZE[1], 3], numpy.uint32)
@@ -84,7 +84,7 @@ def shredColors():
     # Work
     print("Painting Canvas...")
     time_of_start = time.time()
-    
+
     # draw the first color at the starting pixel
     startPainting()
 
@@ -94,12 +94,12 @@ def shredColors():
     while(spatial_index_of_neighborhood_color_holding_location.count([0, 0, 0, 256, 256, 256]) and (count_colors_taken < TOTAL_NUMBER_OF_COLORS)):
         continuePainting()
 
-
     time_elapsed = time.time() - time_of_start
 
     # Final Print Authoring
     printCurrentCanvas(True)
     print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
+
 
 # start the painting, by placing the first target color
 def startPainting():
@@ -175,14 +175,16 @@ def paintToCanvas(rgb_requested_color, knn_querry_result_list):
     global count_collisions
     count_collisions += 1
 
+
+
 # Track the given neighbor as available
 #   if the location is already tracked, un-track it first, then re-track it.
 #   this prevents duplicate availble locations, and updates the neighborhood color
 # Tracking consists of:
-#   inserting a new nearest_neighbor into the spatial_index_of_neighborhood_color_holding_location, 
+#   inserting a new nearest_neighbor into the spatial_index_of_neighborhood_color_holding_location,
 #   and flagging the associated location in the availabilityIndex
 def trackNeighbor(location):
-    
+
     # Globals
     global spatial_index_of_neighborhood_color_holding_location
     global canvas_location_id
@@ -212,9 +214,10 @@ def trackNeighbor(location):
     spatial_index_of_neighborhood_color_holding_location.insert(count_available_locations, colorTools.getColorBoundingBox(rgb_neighborhood_color), location)
     count_available_locations += 1
 
+
 # Un-Track the given nearest_neighbor
 # Un-Tracking Consists of:
-#   removing the given nearest_neighbor from the spatial_index_of_neighborhood_color_holding_location, 
+#   removing the given nearest_neighbor from the spatial_index_of_neighborhood_color_holding_location,
 #   and Un-Flagging the associated location in the availabilityIndex
 def unTrackNeighbor(nearest_neighbor):
 

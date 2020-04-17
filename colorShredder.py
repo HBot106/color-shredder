@@ -4,10 +4,10 @@ import bruteForceShredder
 import rTreeShredder
 
 def main():
-    if (not config.PARSED_ARGS.t):
-        bruteForceShredder.shredColors()
-    else:
+    if (config.PARSED_ARGS.t):
         rTreeShredder.shredColors()
+    else:
+        bruteForceShredder.shredColors()
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ numpy = "*"
 pypng = "*"
 rtree = "*"
 numba = "*"
+pyopencl = "*"
 
 [dev-packages]
 autopep8 = "*"

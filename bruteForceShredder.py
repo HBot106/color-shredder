@@ -46,7 +46,7 @@ canvas_actual_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d
 # holds the average color around each canvas location
 canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
 
-# rTree 
+# rTree
 spatial_index_of_neighborhood_color_holding_location = rtree.index.Index(properties=config.index_properties)
 
 # writes data arrays as PNG image files
@@ -185,7 +185,10 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
 
         index_neighbor_diffs = 0
         list_neighbor_diffs.fill(0)
-        color_neighborhood_average = canvas_painting[list_available_coordinates[index][0], list_available_coordinates[index][1]]
+        color_difference = [0, 0, 0]
+        color_difference_squared = [0, 0, 0]
+        neigborColor = [0, 0, 0]
+        color_neighborhood_average = [0, 0, 0]
 
         # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
         for i in range(3):
@@ -209,12 +212,20 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
 
                         # get colDiff between the neighbor and target colors, add it to the list
                         neigborColor = canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]]
-                        color_neighborhood_average = numpy.add(color_neighborhood_average, neigborColor)
+                        color_neighborhood_average[0] += neigborColor[0]
+                        color_neighborhood_average[1] += neigborColor[1]
+                        color_neighborhood_average[2] += neigborColor[2]
 
                         # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-                        color_difference = numpy.subtract(color_selected, neigborColor)
-                        color_difference_squared = numpy.multiply(color_difference, color_difference)
-                        distance_euclidian_aproximation = numpy.sum(color_difference_squared)
+                        color_difference[0] = color_selected[0] - neigborColor[0]
+                        color_difference[1] = color_selected[1] - neigborColor[1]
+                        color_difference[2] = color_selected[2] - neigborColor[2]
+
+                        color_difference_squared[0] = color_difference[0] * color_difference[0]
+                        color_difference_squared[1] = color_difference[1] * color_difference[1]
+                        color_difference_squared[2] = color_difference[2] * color_difference[2]
+
+                        distance_euclidian_aproximation = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2]
 
                         list_neighbor_diffs[index_neighbor_diffs] = distance_euclidian_aproximation
                         index_neighbor_diffs += 1
@@ -247,9 +258,16 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
                 color_neighborhood_average[2] = color_neighborhood_average[2]/index_neighbor_diffs
 
                 # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-                color_difference = numpy.subtract(color_selected, color_neighborhood_average)
-                color_difference_squared = numpy.multiply(color_difference, color_difference)
-                distance_found = numpy.sum(color_difference_squared)
+                color_difference[0] = color_selected[0] - color_neighborhood_average[0]
+                color_difference[1] = color_selected[1] - color_neighborhood_average[1]
+                color_difference[2] = color_selected[2] - color_neighborhood_average[2]
+
+                color_difference_squared[0] = color_difference[0] * color_difference[0]
+                color_difference_squared[1] = color_difference[1] * color_difference[1]
+                color_difference_squared[2] = color_difference[2] * color_difference[2]
+
+                distance_found = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2]
+                
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 distance_found = sys.maxsize
@@ -353,61 +371,6 @@ def markCoordinateUnavailable(coordinate_requested):
         count_available -= 1
 
 
-# Track the given neighbor as available
-#   if the location is already tracked, un-track it first, then re-track it.
-#   this prevents duplicate availble locations, and updates the neighborhood color
-# Tracking consists of:
-#   inserting a new nearest_neighbor into the spatial_index_of_neighborhood_color_holding_location,
-#   and flagging the associated location in the availabilityIndex
-
-# def trackNeighbor(location):
-
-#     # Globals
-#     global spatial_index_of_neighborhood_color_holding_location
-#     global canvas_neighborhood_color
-#     global count_available
-
-#     # if the neighbor is already in the spatial_index_of_neighborhood_color_holding_location, then it needs to be deleted
-#     # otherwise there will be duplicate avialability with outdated neighborhood colors.
-#     if (canvas_availability[location[0], location[1]]):
-#         rgb_neighborhood_color = canvas_neighborhood_color[location[0], location[1]]
-#         spatial_index_of_neighborhood_color_holding_location.delete(0, getColorBoundingBox(rgb_neighborhood_color))
-
-#         # flag the location as no longer being available
-#         canvas_availability[location[0], location[1]] = False
-
-#     # get the newest neighborhood color
-#     rgb_neighborhood_color = getAverageColor(location, canvas_actual_color)
-
-#     # update the location in the availability index
-#     canvas_availability[location[0]][location[1]] = True
-#     canvas_neighborhood_color[location[0]][location[1]] = rgb_neighborhood_color
-
-#     # add the location to the spatial_index_of_neighborhood_color_holding_location
-#     spatial_index_of_neighborhood_color_holding_location.insert(0, getColorBoundingBox(rgb_neighborhood_color), location)
-#     count_available += 1
-
-
-# Un-Track the given nearest_neighbor
-# Un-Tracking Consists of:
-#   removing the given nearest_neighbor from the spatial_index_of_neighborhood_color_holding_location,
-#   and Un-Flagging the associated location in the availabilityIndex
-
-# def unTrackNeighbor(nearest_neighbor):
-
-#     locationID = nearest_neighbor.id
-#     coordinate_nearest_neighbor = nearest_neighbor.object
-#     bbox_neighborhood_color = nearest_neighbor.bbox
-
-#     # remove object from the spatial_index_of_neighborhood_color_holding_location
-#     global count_placed_colors
-#     spatial_index_of_neighborhood_color_holding_location.delete(locationID, bbox_neighborhood_color)
-#     count_placed_colors += 1
-
-#     # flag the location as no longer being available
-#     canvas_availability[coordinate_nearest_neighbor[0], coordinate_nearest_neighbor[1]] = False
-
-
 # converts a canvas into raw data for writing to a png
 def toRawOutput(canvas):
 
@@ -426,7 +389,6 @@ def getColorBoundingBox(rgb_requested_color):
         print("given:")
         print(rgb_requested_color)
         exit()
-
 
 
 # get the average color of a given location
