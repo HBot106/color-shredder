@@ -8,6 +8,7 @@ import concurrent.futures
 import time
 
 import colorTools
+import canvasTools
 import config
 
 # =============================================================================
@@ -20,37 +21,37 @@ COORDINATE_INVALID = numpy.array([-1, -1])
 # GLOBALS
 # =============================================================================
 
-# empty list of all colors to be placed and an index for tracking position in the list
+# list of all colors to be placed
 list_all_colors = numpy.zeros([((2**config.PARSED_ARGS.c)**3), 3], numpy.uint32)
 index_all_colors = 0
-
 # empty list of all colors to be placed and an index for tracking position in the list
 list_collided_colors = []
 index_collided_colors = 0
 
-# used for ongoing speed calculation
-time_last_print = time.time()
+# R-Tree data structure testing for lookup of available locations
+rTree_neighborhood_colors = rtree.index.Index(properties=config.index_properties)
 
-# tracked for informational printout / progress report
-count_collisions = 0
-count_placed_colors = 0
-
-# canvas and list for tracking available coordinates
+# CANVASES
+# Canvases are 2d arrays that are the size of the output painting
+#
+# holds boolean availability for each canvas location
 canvas_availability = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.bool)
 list_availabilty = []
-count_available = 0
-
-# holds the current RGB state of the canvas
+# holds the ID/index (for the spatial index) of each canvas location
+canvas_id = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.uint32)
+# holds the current state of the painting
 canvas_actual_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
-
 # holds the average color around each canvas location
 canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
 
-# rTree
-spatial_index_of_neighborhood_color_holding_location = rtree.index.Index(properties=config.index_properties)
-
 # writes data arrays as PNG image files
-png_author = png.Writer(config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], greyscale=False)
+png_painter = png.Writer(config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], greyscale=False)
+# used for ongoing speed calculation
+time_last_print = time.time()
+# counters
+count_collisions = 0
+count_colors_placed = 0
+count_available = 0
 # =============================================================================
 
 
@@ -68,7 +69,7 @@ def shredColors():
     startPainting()
 
     # # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
-    while(count_available and (index_all_colors < list_all_colors.shape[0])):
+    while(count_available and (1 < list_all_colors.shape[0])):
         continuePainting()
 
     # # while more un-colored boundry locations exist and there are more collision colors to be placed, continue painting
@@ -267,7 +268,7 @@ def getBestPositionForColor(color_selected, list_neighbor_diffs, list_available_
                 color_difference_squared[2] = color_difference[2] * color_difference[2]
 
                 distance_found = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2]
-                
+
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 distance_found = sys.maxsize
@@ -290,7 +291,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
     # Global Access
     global count_collisions
-    global count_placed_colors
+    global count_colors_placed
     global canvas_actual_color
 
     # double check the the pixel is COLOR_BLACK
@@ -300,7 +301,7 @@ def paintToCanvas(requestedColor, requestedCoord):
         # the best position for requestedColor has been found color it, and mark it unavailable
         canvas_actual_color[requestedCoord[0], requestedCoord[1]] = requestedColor
         markCoordinateUnavailable(requestedCoord)
-        count_placed_colors += 1
+        count_colors_placed += 1
 
         # for the 8 neighboring locations check that they are in the canvas and uncolored (black), then account for their availabity
         markValidNeighborsAvailable(requestedCoord)
@@ -312,7 +313,7 @@ def paintToCanvas(requestedColor, requestedCoord):
 
     # print progress
     if (config.PARSED_ARGS.r):
-        if (count_placed_colors % config.PARSED_ARGS.r == 0):
+        if (count_colors_placed % config.PARSED_ARGS.r == 0):
             printCurrentCanvas()
 
 
@@ -372,13 +373,13 @@ def markCoordinateUnavailable(coordinate_requested):
 
 
 # converts a canvas into raw data for writing to a png
-def toRawOutput(canvas):
+def getRawOutput():
 
     # converts the given canvas into a format that the PNG module can use to write a png
-    canvas_8bit = numpy.array(canvas, numpy.uint8)
+    canvas_8bit = numpy.array(canvas_actual_color, numpy.uint8)
     canvas_transposed = numpy.transpose(canvas_8bit, (1, 0, 2))
     canvas_flipped = numpy.flip(canvas_transposed, 2)
-    return numpy.reshape(canvas_flipped, (canvas.shape[1], canvas.shape[0] * 3))
+    return numpy.reshape(canvas_flipped, (canvas_actual_color.shape[1], canvas_actual_color.shape[0] * 3))
 
 
 def getColorBoundingBox(rgb_requested_color):
@@ -433,7 +434,7 @@ def printCurrentCanvas(finalize=False):
 
     # Global Access
     global time_last_print
-    global png_author
+    global png_painter
 
     # get time_elapsed time
     time_current = time.time()
@@ -446,13 +447,13 @@ def printCurrentCanvas(finalize=False):
         # write the png file
         painting_output_name = (config.PARSED_ARGS.f + '.png')
         painting_output_file = open(painting_output_name, 'wb')
-        png_author.write(painting_output_file, toRawOutput(canvas_actual_color))
+        png_painter.write(painting_output_file, getRawOutput())
         painting_output_file.close()
 
         # Info Print
         time_last_print = time_current
         info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
-        print(info_print.format(count_placed_colors, count_available, (count_placed_colors * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
+        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
 
     # if debug flag set, slow down the painting process
     if (config.DEFAULT_PAINTER['DEBUG_WAIT']):
