@@ -225,9 +225,7 @@ def paintToCanvas(requested_color, requested_coord, knn_querry_result=False):
             trackNewBoundyNeighbors_bruteForce(requested_coord)
 
         # print progress
-        if (config.PARSED_ARGS.r):
-            if (count_colors_placed % config.PARSED_ARGS.r == 0):
-                printCurrentCanvas()
+        printCurrentCanvas()
 
     # collision
     else:
@@ -255,24 +253,46 @@ def printCurrentCanvas(finalize=False):
     global time_last_print
     global png_painter
 
-    # get time_elapsed time
-    time_current = time.time()
-    time_elapsed = time_current - time_last_print
+    if not (count_colors_placed % config.PARSED_ARGS.r):
 
-    # exclude duplicate printings
-    if (time_elapsed > 0):
-        painting_rate = config.PARSED_ARGS.r/time_elapsed
+        # get time_elapsed time
+        time_current = time.time()
+        time_elapsed = time_current - time_last_print
 
-        # write the png file
-        painting_output_name = (config.PARSED_ARGS.f + '.png')
-        painting_output_file = open(painting_output_name, 'wb')
-        png_painter.write(painting_output_file, getRawOutput())
-        painting_output_file.close()
+        # exclude duplicate printings
+        if (time_elapsed):
+            painting_rate = config.PARSED_ARGS.r/time_elapsed
 
-        # Info Print
-        time_last_print = time_current
-        info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
-        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
+            # write the png file
+            painting_output_name = (config.PARSED_ARGS.f + '.png')
+            painting_output_file = open(painting_output_name, 'wb')
+            png_painter.write(painting_output_file, getRawOutput())
+            painting_output_file.close()
+
+            # Info Print
+            time_last_print = time_current
+            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
+            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
+
+    if (finalize):
+        # get time_elapsed time
+        time_current = time.time()
+        time_elapsed = time_current - time_last_print
+
+        # exclude duplicate printings
+        if (time_elapsed):
+            painting_rate = config.PARSED_ARGS.r/time_elapsed
+
+            # write the png file
+            painting_output_name = (config.PARSED_ARGS.f + '.png')
+            painting_output_file = open(painting_output_name, 'wb')
+            png_painter.write(painting_output_file, getRawOutput())
+            painting_output_file.close()
+
+            # Info Print
+            time_last_print = time_current
+            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
+            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
 
     # if debug flag set, slow down the painting process
     if (config.DEFAULT_PAINTER['DEBUG_WAIT']):

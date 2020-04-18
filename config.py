@@ -24,10 +24,10 @@ DEFAULT_COLOR = dict(
 )
 
 DEFAULT_PAINTER = dict(
-    LOCATIONS_PER_PAINTER = 50,
-    MIN_MULTI_WORKLOAD = 200,
+    LOCATIONS_PER_PAINTER = 100,
+    MIN_MULTI_WORKLOAD = 100,
     MULTIPROCESSING = False,
-    MAX_PAINTERS = (os.cpu_count() * 4),
+    MAX_PAINTERS = (os.cpu_count()),
     PRINT_RATE = 100,
     DEBUG_WAIT = False,
     DEBUG_WAIT_TIME = 1,
@@ -69,6 +69,7 @@ if (PARSED_ARGS.t and PARSED_ARGS.j):
 if (PARSED_ARGS.t and not (PARSED_ARGS.q == 3)):
     print("When using the rTree, shredder can only utilize the quick strategy")
     quit()
+PARSED_ARGS.r = max(PARSED_ARGS.r, DEFAULT_PAINTER['MAX_PAINTERS'])
 
 
 # rTree properties
