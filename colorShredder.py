@@ -24,6 +24,8 @@ COORDINATE_INVALID = numpy.array([-1, -1])
 # =============================================================================
 # GLOBALS
 # =============================================================================
+# process_pool executor
+mutliprocessing_painter_manager = concurrent.futures.ProcessPoolExecutor()
 # list of all colors to be placed
 list_all_colors = numpy.zeros([((2**config.PARSED_ARGS.c)**3), 3], numpy.uint32)
 index_all_colors = 0
@@ -62,6 +64,7 @@ canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_
 def main():
     # Global Access
     global list_all_colors
+    global mutliprocessing_painter_manager
 
     # Setup
     list_all_colors = colorTools.generateColors(config.PARSED_ARGS.c, config.DEFAULT_COLOR['MULTIPROCESSING'], config.DEFAULT_COLOR['SHUFFLE'])
@@ -73,11 +76,11 @@ def main():
 
     # Work
     if (config.PARSED_ARGS.t):
-        while(rTree_neighborhood_colors.count([0, 0, 0, 256, 256, 256]) and (index_all_colors < len(list_all_colors))):
+        while(rTree_neighborhood_colors.count([0, 0, 0, 256, 256, 256]) and (index_all_colors < list_all_colors.shape[0])):
             continuePainting()
     else:
         # while more un-colored boundry locations exist and there are more colors to be placed, continue painting
-        while(count_available and (1 < list_all_colors.shape[0])):
+        while(count_available and (index_all_colors < list_all_colors.shape[0])):
             continuePainting()
 
     # while more un-colored boundry locations exist and there are more collision colors to be placed, continue painting
@@ -88,6 +91,9 @@ def main():
     time_elapsed = time.time() - time_started
     printCurrentCanvas(True)
     print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
+
+    # teardown the process pool
+    mutliprocessing_painter_manager.shutdown()
 
 
 # start the painting, by placing the first target color
@@ -106,10 +112,10 @@ def startPainting():
 
     if (config.PARSED_ARGS.t):
         # add its neigbors to uncolored Boundary Region
-        trackNewBoundyNeighbors(coordinate_start_point)
+        trackNewBoundyNeighbors_rTree(coordinate_start_point)
     else:
         # for the 8 neighboring locations check that they are in the canvas and uncolored (black), then account for their availabity
-        markValidNeighborsAvailable(coordinate_start_point)
+        trackNewBoundyNeighbors_bruteForce(coordinate_start_point)
 
     # finish first pixel
     printCurrentCanvas(True)
@@ -120,12 +126,12 @@ def continuePainting():
 
     # Global Access
     global index_all_colors
+    global mutliprocessing_painter_manager
 
     # Setup
     # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing
     # also check for config flag
     if ((count_available > config.DEFAULT_PAINTER['MIN_MULTI_WORKLOAD']) and config.PARSED_ARGS.m):
-        mutliprocessing_painter_manager = concurrent.futures.ProcessPoolExecutor()
         list_painter_work_queue = []
 
         # cap the number of workers so that there are at least LOCATIONS_PER_PAINTER free locations per worker
@@ -155,9 +161,6 @@ def continuePainting():
             # attempt to paint the color at the corresponding location
             paintToCanvas(worker_color_selected, worker_corrdinate_selected)
 
-        # teardown the process pool
-        mutliprocessing_painter_manager.shutdown()
-
     # otherwise, use only the main process
     # This is because the overhead of multithreading makes singlethreading better for small problems
     else:
@@ -178,7 +181,7 @@ def continuePainting():
             paintToCanvas(color_selected, coordinate_selected)
 
 
-# finish the painting by using the same strategy but on the list of all colors that were not placed due to collisions
+# finish the painting using brute force on the list of all colors that were not placed due to collisions
 def finishPainting():
     global index_collided_colors
 
@@ -188,7 +191,7 @@ def finishPainting():
 
     # find the best location for that color
     list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
-    coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.DEFAULT_MODE['GET_BEST_POSITION_MODE'])[1]
+    coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(color_selected, coordinate_selected)
@@ -211,15 +214,15 @@ def paintToCanvas(requested_color, requested_coord, knn_querry_result=False):
 
         if (knn_querry_result):
             # remove neighbor from rTree
-            unTrackNeighbor(knn_querry_result)
+            unTrackCoordinate_rTree(knn_querry_result)
             # each valid neighbor position should be added to uncolored Boundary Region
-            trackNewBoundyNeighbors(requested_coord)
+            trackNewBoundyNeighbors_rTree(requested_coord)
 
         else:
             # remove neigbor from availibility canvas
-            markCoordinateUnavailable(requested_coord)
+            unTrackCoordinate_bruteForce(requested_coord)
             # for the 8 neighboring locations check that they are in the canvas and uncolored (black), then account for their availabity
-            markValidNeighborsAvailable(requested_coord)
+            trackNewBoundyNeighbors_bruteForce(requested_coord)
 
         # print progress
         if (config.PARSED_ARGS.r):
@@ -228,7 +231,7 @@ def paintToCanvas(requested_color, requested_coord, knn_querry_result=False):
 
     # collision
     else:
-        list_collided_colors.append(requested_coord)
+        list_collided_colors.append(requested_color)
         count_collisions += 1
 
 
@@ -437,7 +440,7 @@ if config.PARSED_ARGS.j:
 
 
 # tracks a neighborhood around a coordinate in the two availabilty data structures
-def markValidNeighborsAvailable(coordinate_requested):
+def trackNewBoundyNeighbors_bruteForce(coordinate_requested):
 
     # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
     for i in range(3):
@@ -458,11 +461,11 @@ def markValidNeighborsAvailable(coordinate_requested):
                 # neighbor must also be black (not already colored)
                 bool_neighbor_is_black = numpy.array_equal(canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                 if (bool_neighbor_is_black):
-                    markCoordinateAvailable(coordinate_neighbor)
+                    trackCoordinate_bruteForce(coordinate_neighbor)
 
 
 # tracks a coordinate in the two availabilty data structures
-def markCoordinateAvailable(coordinate_requested):
+def trackCoordinate_bruteForce(coordinate_requested):
 
     # Global Access
     global count_available
@@ -477,7 +480,7 @@ def markCoordinateAvailable(coordinate_requested):
 
 
 # un-tracks a coordinate in the two availabilty data structures
-def markCoordinateUnavailable(coordinate_requested):
+def unTrackCoordinate_bruteForce(coordinate_requested):
 
     # Global Access
     global count_available
@@ -498,18 +501,18 @@ def getBestPositionForColor_rTree(rgb_requested_color):
     return list(rTree_neighborhood_colors.nearest(colorTools.getColorBoundingBox(rgb_requested_color), 1, objects='RAW'))
 
 
-def trackNewBoundyNeighbors(location):
-    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
+def trackNewBoundyNeighbors_rTree(coordinate_requested):
+    # Get all 8 neighbors, Loop over the 3x3 grid surrounding the coordinate_requested being considered
     for i in range(3):
         for j in range(3):
 
-            # this pixel is the location being considered;
+            # this pixel is the coordinate_requested being considered;
             # it is not a neigbor, go to the next one
             if (i == 1 and j == 1):
                 continue
 
             # calculate the neigbor's coordinates
-            coordinate_neighbor = ((location[0] - 1 + i), (location[1] - 1 + j))
+            coordinate_neighbor = ((coordinate_requested[0] - 1 + i), (coordinate_requested[1] - 1 + j))
 
             # neighbor must be in the canvas
             bool_neighbor_in_canvas = ((0 <= coordinate_neighbor[0] < canvas_actual_color.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_actual_color.shape[1]))
@@ -518,7 +521,7 @@ def trackNewBoundyNeighbors(location):
                 # neighbor must also not be black
                 bool_neighbor_is_black = numpy.array_equal(canvas_actual_color[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK)
                 if (bool_neighbor_is_black):
-                    trackNeighbor(coordinate_neighbor)
+                    trackCoordinate_rTree(coordinate_neighbor)
 
 
 # Track the given neighbor as available
@@ -527,7 +530,7 @@ def trackNewBoundyNeighbors(location):
 # Tracking consists of:
 #   inserting a new nearest_neighbor into the rTree_neighborhood_colors,
 #   and flagging the associated location in the availabilityIndex
-def trackNeighbor(location):
+def trackCoordinate_rTree(coordinate_requested):
 
     # Globals
     global rTree_neighborhood_colors
@@ -538,24 +541,24 @@ def trackNeighbor(location):
 
     # if the neighbor is already in the rTree_neighborhood_colors, then it needs to be deleted
     # otherwise there will be duplicate avialability with outdated neighborhood colors.
-    if (canvas_availability[location[0], location[1]]):
-        neighborID = canvas_id[location[0], location[1]]
-        rgb_neighborhood_color = canvas_neighborhood_color[location[0], location[1]]
+    if (canvas_availability[coordinate_requested[0], coordinate_requested[1]]):
+        neighborID = canvas_id[coordinate_requested[0], coordinate_requested[1]]
+        rgb_neighborhood_color = canvas_neighborhood_color[coordinate_requested[0], coordinate_requested[1]]
         rTree_neighborhood_colors.delete(neighborID, colorTools.getColorBoundingBox(rgb_neighborhood_color))
 
-        # flag the location as no longer being available
-        canvas_availability[location[0], location[1]] = False
+        # flag the coordinate_requested as no longer being available
+        canvas_availability[coordinate_requested[0], coordinate_requested[1]] = False
 
     # get the newest neighborhood color
-    rgb_neighborhood_color = getAverageColor(location)
+    rgb_neighborhood_color = getAverageColor(coordinate_requested)
 
-    # update the location in the availability index
-    canvas_availability[location[0]][location[1]] = True
-    canvas_id[location[0]][location[1]] = count_available
-    canvas_neighborhood_color[location[0]][location[1]] = rgb_neighborhood_color
+    # update the coordinate_requested in the availability index
+    canvas_availability[coordinate_requested[0]][coordinate_requested[1]] = True
+    canvas_id[coordinate_requested[0]][coordinate_requested[1]] = count_available
+    canvas_neighborhood_color[coordinate_requested[0]][coordinate_requested[1]] = rgb_neighborhood_color
 
-    # add the location to the rTree_neighborhood_colors
-    rTree_neighborhood_colors.insert(count_available, colorTools.getColorBoundingBox(rgb_neighborhood_color), location)
+    # add the coordinate_requested to the rTree_neighborhood_colors
+    rTree_neighborhood_colors.insert(count_available, colorTools.getColorBoundingBox(rgb_neighborhood_color), coordinate_requested)
     count_available += 1
 
 
@@ -563,7 +566,7 @@ def trackNeighbor(location):
 # Un-Tracking Consists of:
 #   removing the given nearest_neighbor from the rTree_neighborhood_colors,
 #   and Un-Flagging the associated location in the availabilityIndex
-def unTrackNeighbor(nearest_neighbor):
+def unTrackCoordinate_rTree(nearest_neighbor):
 
     locationID = nearest_neighbor.id
     coordinate_nearest_neighbor = nearest_neighbor.object
