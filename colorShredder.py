@@ -17,7 +17,7 @@ import config
 # =============================================================================
 # MACROS
 # =============================================================================
-COLOR_BLACK = numpy.array([0, 0, 0], numpy.uint32)
+COLOR_BLACK = numpy.array([0, 0, 0], numpy.uint64)
 COORDINATE_INVALID = numpy.array([-1, -1])
 
 
@@ -27,7 +27,7 @@ COORDINATE_INVALID = numpy.array([-1, -1])
 # process_pool executor
 mutliprocessing_painter_manager = concurrent.futures.ProcessPoolExecutor()
 # list of all colors to be placed
-list_all_colors = numpy.zeros([((2**config.PARSED_ARGS.c)**3), 3], numpy.uint32)
+list_all_colors = numpy.zeros([((2**config.PARSED_ARGS.c)**3), 3], numpy.uint64)
 index_all_colors = 0
 # empty list of all colors to be placed and an index for tracking position in the list
 list_collided_colors = []
@@ -40,6 +40,7 @@ time_last_print = time.time()
 count_collisions = 0
 count_colors_placed = 0
 count_available = 0
+count_id = 0
 
 
 # =============================================================================
@@ -51,11 +52,11 @@ rTree_neighborhood_colors = rtree.index.Index(properties=config.index_properties
 canvas_availability = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.bool)
 list_availabilty = []
 # holds the ID/index (for the spatial index) of each canvas location
-canvas_id = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.uint32)
+canvas_id = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1]], numpy.uint64)
 # holds the current state of the painting
-canvas_actual_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
+canvas_actual_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint64)
 # holds the average color around each canvas location
-canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint32)
+canvas_neighborhood_color = numpy.zeros([config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], 3], numpy.uint64)
 
 
 # =============================================================================
@@ -67,7 +68,7 @@ def main():
     global mutliprocessing_painter_manager
 
     # Setup
-    list_all_colors = colorTools.generateColors(config.PARSED_ARGS.c, config.DEFAULT_COLOR['MULTIPROCESSING'], config.DEFAULT_COLOR['SHUFFLE'])
+    list_all_colors = colorTools.generateColors()
     print("Painting Canvas...")
     time_started = time.time()
 
@@ -148,7 +149,7 @@ def continuePainting():
                 index_all_colors += 1
 
                 # schedule a worker to find the best location for that color
-                list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
+                list_neighbor_diffs = numpy.zeros(8, numpy.uint64)
                 list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor_bruteForce, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q))
 
         # as each worker completes
@@ -175,7 +176,7 @@ def continuePainting():
             paintToCanvas(color_selected, coordinate_best_position[0].object, coordinate_best_position[0])
         else:
             # find the best location for that color
-            list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
+            list_neighbor_diffs = numpy.zeros(8, numpy.uint64)
             coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
             # attempt to paint the color at the corresponding location
             paintToCanvas(color_selected, coordinate_selected)
@@ -190,7 +191,7 @@ def finishPainting():
     index_collided_colors += 1
 
     # find the best location for that color
-    list_neighbor_diffs = numpy.zeros(8, numpy.uint32)
+    list_neighbor_diffs = numpy.zeros(8, numpy.uint64)
     coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
     # attempt to paint the color at the corresponding location
@@ -299,6 +300,10 @@ def printCurrentCanvas(finalize=False):
         time.sleep(config.DEFAULT_PAINTER['DEBUG_WAIT_TIME'])
 
 
+def getColorBoundingBox(color):
+    return(color[0], color[1], color[2], color[0], color[1], color[2])
+
+
 # get the average color of a given location
 def getAverageColor(coordinate_requested):
     # Setup
@@ -334,9 +339,9 @@ def getAverageColor(coordinate_requested):
     if (index_of_neighbor):
 
         # divide through by the index_of_neighbor to average the color
-        rgb_divisor_array = numpy.array([index_of_neighbor, index_of_neighbor, index_of_neighbor], numpy.uint32)
+        rgb_divisor_array = numpy.array([index_of_neighbor, index_of_neighbor, index_of_neighbor], numpy.uint64)
         rgb_average_color = numpy.divide(rgb_color_sum, rgb_divisor_array)
-        rgb_average_color_rounded = numpy.array(rgb_average_color, numpy.uint32)
+        rgb_average_color_rounded = numpy.array(rgb_average_color, numpy.uint64)
 
         return rgb_average_color_rounded
     else:
@@ -518,7 +523,7 @@ def unTrackCoordinate_bruteForce(coordinate_requested):
 # RTREE
 # =============================================================================
 def getBestPositionForColor_rTree(rgb_requested_color):
-    return list(rTree_neighborhood_colors.nearest(colorTools.getColorBoundingBox(rgb_requested_color), 1, objects='RAW'))
+    return list(rTree_neighborhood_colors.nearest(getColorBoundingBox(rgb_requested_color), 1, objects='RAW'))
 
 
 def trackNewBoundyNeighbors_rTree(coordinate_requested):
@@ -558,28 +563,31 @@ def trackCoordinate_rTree(coordinate_requested):
     global canvas_availability
     global canvas_neighborhood_color
     global count_available
+    global count_id
 
     # if the neighbor is already in the rTree_neighborhood_colors, then it needs to be deleted
     # otherwise there will be duplicate avialability with outdated neighborhood colors.
     if (canvas_availability[coordinate_requested[0], coordinate_requested[1]]):
         neighborID = canvas_id[coordinate_requested[0], coordinate_requested[1]]
         rgb_neighborhood_color = canvas_neighborhood_color[coordinate_requested[0], coordinate_requested[1]]
-        rTree_neighborhood_colors.delete(neighborID, colorTools.getColorBoundingBox(rgb_neighborhood_color))
+        rTree_neighborhood_colors.delete(neighborID, getColorBoundingBox(rgb_neighborhood_color))
 
         # flag the coordinate_requested as no longer being available
         canvas_availability[coordinate_requested[0], coordinate_requested[1]] = False
+        count_available -= 1
 
     # get the newest neighborhood color
     rgb_neighborhood_color = getAverageColor(coordinate_requested)
 
     # update the coordinate_requested in the availability index
     canvas_availability[coordinate_requested[0]][coordinate_requested[1]] = True
-    canvas_id[coordinate_requested[0]][coordinate_requested[1]] = count_available
+    count_available += 1
+    canvas_id[coordinate_requested[0]][coordinate_requested[1]] = count_id
     canvas_neighborhood_color[coordinate_requested[0]][coordinate_requested[1]] = rgb_neighborhood_color
 
     # add the coordinate_requested to the rTree_neighborhood_colors
-    rTree_neighborhood_colors.insert(count_available, colorTools.getColorBoundingBox(rgb_neighborhood_color), coordinate_requested)
-    count_available += 1
+    rTree_neighborhood_colors.insert(count_id, getColorBoundingBox(rgb_neighborhood_color), coordinate_requested)
+    count_id += 1
 
 
 # Un-Track the given nearest_neighbor
@@ -588,16 +596,20 @@ def trackCoordinate_rTree(coordinate_requested):
 #   and Un-Flagging the associated location in the availabilityIndex
 def unTrackCoordinate_rTree(nearest_neighbor):
 
+    global count_available
+    global count_id
+
     locationID = nearest_neighbor.id
     coordinate_nearest_neighbor = nearest_neighbor.object
     bbox_neighborhood_color = nearest_neighbor.bbox
 
     # remove object from the rTree_neighborhood_colors
-    global count_colors_placed
     rTree_neighborhood_colors.delete(locationID, bbox_neighborhood_color)
 
     # flag the location as no longer being available
     canvas_availability[coordinate_nearest_neighbor[0], coordinate_nearest_neighbor[1]] = False
+    count_available -= 1
+    count_id -= 1
 
 
 # =============================================================================
