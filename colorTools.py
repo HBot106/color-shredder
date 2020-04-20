@@ -17,7 +17,7 @@ HSV = config.PARSED_ARGS.hsv
 
 def generateColors():
     # Setup
-    list_of_all_colors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint64)
+    list_of_all_colors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint16)
 
     hues = numpy.array(range((2**COLOR_BIT_DEPTH)))
     numpy.random.shuffle(hues)
@@ -44,7 +44,7 @@ def generateColors():
 def colorWorker(chan1_val):
 
     # Setup
-    color_sub_list = numpy.zeros([VALUES_PER_CHANNEL**2, 3], numpy.uint64)
+    color_sub_list = numpy.zeros([VALUES_PER_CHANNEL**2, 3], numpy.uint16)
     index_in_color_sub_list = 0
 
     # loop over every value of chan3_val and chan2_val producing each color that can have the given chan1_val
@@ -59,7 +59,7 @@ def colorWorker(chan1_val):
             else:
                 rgb_color = ((chan1_val/VALUES_PER_CHANNEL), (chan2_val/VALUES_PER_CHANNEL), (chan3_val/VALUES_PER_CHANNEL))
 
-            color_sub_list[index_in_color_sub_list] = numpy.array([(rgb_color[0] * 255), (rgb_color[1] * 255), (rgb_color[2] * 255)], numpy.uint64)
+            color_sub_list[index_in_color_sub_list] = numpy.array([(rgb_color[0] * 255), (rgb_color[1] * 255), (rgb_color[2] * 255)], numpy.uint16)
             index_in_color_sub_list += 1
 
     # return all colors with the given chan1_val value
