@@ -159,7 +159,7 @@ def continuePainting():
 
                 # schedule a worker to find the best location for that color
                 list_neighbor_diffs = numpy.zeros(8, numpy.uint16)
-                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor_bruteForce, color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q))
+                list_painter_work_queue.append(mutliprocessing_painter_manager.submit(getBestPositionForColor_bruteForce, color_selected, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q))
 
         # as each worker completes
         for painter_worker in concurrent.futures.as_completed(list_painter_work_queue):
@@ -186,7 +186,7 @@ def continuePainting():
         else:
             # find the best location for that color
             list_neighbor_diffs = numpy.zeros(8, numpy.uint16)
-            coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
+            coordinate_selected = getBestPositionForColor_bruteForce(color_selected, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
             # attempt to paint the color at the corresponding location
             paintToCanvas(color_selected, coordinate_selected)
 
@@ -201,7 +201,7 @@ def finishPainting():
 
     # find the best location for that color
     list_neighbor_diffs = numpy.zeros(8, numpy.uint16)
-    coordinate_selected = getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
+    coordinate_selected = getBestPositionForColor_bruteForce(color_selected, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(color_selected, coordinate_selected)
@@ -361,7 +361,7 @@ def getAverageColor(coordinate_requested):
 # BRUTE_FORCE
 # =============================================================================
 # Gives the best location among all avilable for the requested color; Also returns the color itself
-def getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, list_available_coordinates, canvas_painting, mode_selected):
+def getBestPositionForColor_bruteForce(color_selected, list_available_coordinates, canvas_painting, mode_selected):
 
     # reset minimums
     coordinate_minumum = COORDINATE_INVALID
@@ -371,7 +371,7 @@ def getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, list
     for index in range(list_available_coordinates.shape[0]):
 
         index_neighbor_diffs = 0
-        list_neighbor_diffs.fill(0)
+        list_neighbor_diffs = [0, 0, 0, 0, 0, 0, 0, 0]
         color_difference = [0, 0, 0]
         color_difference_squared = [0, 0, 0]
         neigborColor = [0, 0, 0]
@@ -393,13 +393,14 @@ def getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, list
                 if not ((0 <= coordinate_neighbor[0] < canvas_painting.shape[0]) and (0 <= coordinate_neighbor[1] < canvas_painting.shape[1])):
                     continue
 
-                # neighbor must not be black
-                if numpy.array_equal(canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]], COLOR_BLACK):
-                    continue
-
-                # get colDiff between the neighbor and target colors, add it to the list
+                # get the neighbor color
                 neigborColor = canvas_painting[coordinate_neighbor[0], coordinate_neighbor[1]]
 
+                # neighbor must not be black
+                if ((neigborColor[0] == COLOR_BLACK[0]) and (neigborColor[1] == COLOR_BLACK[1]) and (neigborColor[2] == COLOR_BLACK[2])):
+                    continue
+
+                # add neighbor color to running sum
                 color_neighborhood_average[0] += neigborColor[0]
                 color_neighborhood_average[1] += neigborColor[1]
                 color_neighborhood_average[2] += neigborColor[2]
@@ -422,8 +423,13 @@ def getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, list
         if (mode_selected == 1):
             # check if the considered pixel has at least one valid neighbor
             if (index_neighbor_diffs):
+
                 # return the minimum difference of all the neighbors
-                distance_found = numpy.min(list_neighbor_diffs[0:index_neighbor_diffs])
+                distance_found = sys.maxsize
+                for i in range(index_neighbor_diffs):
+                    if (list_neighbor_diffs[i] < distance_found):
+                        distance_found = list_neighbor_diffs[i]
+
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 distance_found = sys.maxsize
@@ -431,8 +437,13 @@ def getBestPositionForColor_bruteForce(color_selected, list_neighbor_diffs, list
         elif (mode_selected == 2):
             # check if the considered pixel has at least one valid neighbor
             if (index_neighbor_diffs):
-                # return the minimum difference of all the neighbors
-                distance_found = numpy.mean(list_neighbor_diffs[0:index_neighbor_diffs])
+
+                # return the average difference of all the neighbors
+                distance_found = 0
+                for i in range(index_neighbor_diffs):
+                    distance_found += list_neighbor_diffs[i]
+                distance_found = (distance_found / index_neighbor_diffs)
+
             # if it has no valid neighbors, maximise its colorDiff
             else:
                 distance_found = sys.maxsize
@@ -635,7 +646,7 @@ def getBestPositionForColor_openCL(color_selected, list_available_coordinates, c
     for index in range(list_available_coordinates.shape[0]):
 
         index_neighbor_diffs = 0
-        list_neighbor_diffs.fill(0)
+        list_neighbor_diffs = [0, 0, 0, 0, 0, 0, 0, 0]
         color_difference = [0, 0, 0]
         color_difference_squared = [0, 0, 0]
         neigborColor = [0, 0, 0]
