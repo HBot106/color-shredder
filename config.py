@@ -20,7 +20,7 @@ DEFAULT_MODE = dict(
 DEFAULT_COLOR = dict(
     COLOR_BIT_DEPTH = 6,
     SHUFFLE = True,
-    SHUFFLE_CHANNEL = 1,
+    SHUFFLE_CHANNEL = -1,
     HLS = False,
     HSV = False,
     MULTIPROCESSING = True
@@ -51,14 +51,14 @@ CONFIG_PARSER = argparse.ArgumentParser(
     description="The Color Shredder chooses colors from a randomized set, placing colors one at a time in the location where the color \"fits best\". There are three available strategies for best fit. The process can also be accelerated with CPU Parallelism, Just-In-Time Compilation, OpenCL Parallelism, or a Spatial Data Structure.",
     allow_abbrev=False
 )
-CONFIG_PARSER.add_argument('-x', action='store_false', help='group colors by first channel value', default=DEFAULT_COLOR['SHUFFLE'])
+# CONFIG_PARSER.add_argument('-x', action='store_false', help='group colors by first channel value', default=DEFAULT_COLOR['SHUFFLE'])
 CONFIG_PARSER.add_argument('-hls', action='store_true', help='generate colors using hls color space', default=DEFAULT_COLOR['HLS'])
 CONFIG_PARSER.add_argument('-hsv', action='store_true', help='generate colors using hsv color space', default=DEFAULT_COLOR['HSV'])
 CONFIG_PARSER.add_argument('-m', action='store_true', help='enable multiprocessing for painting', default=DEFAULT_PAINTER['MULTIPROCESSING'])
 CONFIG_PARSER.add_argument('-j', action='store_true', help='enable just in time compilation for painting', default=DEFAULT_MODE['USE_NUMBA'])
 CONFIG_PARSER.add_argument('-t', action='store_true', help='use rTree for painting', default=DEFAULT_MODE['USE_RTREE'])
 CONFIG_PARSER.add_argument('-c', metavar='dep', help='color space bit depth', default=DEFAULT_COLOR['COLOR_BIT_DEPTH'], type=int)
-CONFIG_PARSER.add_argument('-x', metavar='chan', help='leave a color channel un-shuffled', default=DEFAULT_COLOR['COLOR_BIT_DEPTH'], type=int)
+CONFIG_PARSER.add_argument('-x', metavar='chan', help='leave a color channel (1, 2, or 3) un-shuffled', default=DEFAULT_COLOR['SHUFFLE_CHANNEL'], type=int)
 CONFIG_PARSER.add_argument('-d', metavar='dim', nargs=2, help='dimensions of the output image', default=[DEFAULT_CANVAS['CANVAS_WIDTH'], DEFAULT_CANVAS['CANVAS_HEIGHT']], type=int)
 CONFIG_PARSER.add_argument('-s', metavar='crd', nargs=2, help='coordinates of the starting location', default=[DEFAULT_CANVAS['START_X'], DEFAULT_CANVAS['START_Y']], type=int)
 CONFIG_PARSER.add_argument('-f', metavar='flnm', help='name of output image', default=DEFAULT_PAINTER['PAINTING_NAME'], type=str)

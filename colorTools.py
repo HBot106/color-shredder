@@ -16,6 +16,9 @@ HLS = config.PARSED_ARGS.hls
 HSV = config.PARSED_ARGS.hsv
 
 def generateColors():
+    
+    global USE_SHUFFLE
+    
     # Setup
     list_of_all_colors = numpy.zeros([((2**COLOR_BIT_DEPTH)**3), 3], numpy.uint16)
 
@@ -34,8 +37,10 @@ def generateColors():
         index_in_color_list += 1
         print("Generating colors... {:3.2f}".format(100*index_in_color_list/(2**COLOR_BIT_DEPTH)) + '%' + " complete.", end='\r')
 
-    if (USE_SHUFFLE):
+    if (USE_SHUFFLE < 0):
         numpy.random.shuffle(list_of_all_colors)
+    else:
+        USE_SHUFFLE = 1
 
     return list_of_all_colors
 
@@ -47,7 +52,7 @@ def colorWorker(chan1_val):
     color_sub_list = numpy.zeros([VALUES_PER_CHANNEL**2, 3], numpy.uint16)
     index_in_color_sub_list = 0
     output_color = [0,0,0]
-    channel_shift = 1
+    channel_shift = (USE_SHUFFLE - 1)
 
     # loop over every value of chan3_val and chan2_val producing each color that can have the given chan1_val
     for chan2_val in range(VALUES_PER_CHANNEL):
