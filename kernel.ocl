@@ -1,160 +1,161 @@
-__kernel void getBestPositionForColor_openCL(__global const float *a_g, __global const float *b_g, __global float *res_g) // __global uint *dev_result, __global const uint *dev_color, __global const uint *dev_avail_coords, __global const uint *dev_canvas) // , __global const uint *dev_x_dim, __global const uint *dev_y_dim, __global const uint *dev_avail_count, __global const uint *dev_mode)
+__kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global const uint *dev_color, __global const uint *dev_avail_coords, __global const uint *dev_canvas, __global const uint *dev_x_dim, __global const uint *dev_y_dim, __global const uint *dev_avail_count, __global const uint *dev_mode)
 {
     int gid = get_global_id(0);
-    res_g[gid] = a_g[gid] + b_g[gid];
 
-    // // # reset minimums
-    // uint distance_found = 65535;
-    // uint distance_minumum = 65535;
-    // uint coordinate_minumum[2] = {65535, 65535};
-    // uint worker_dev_color[3] = {dev_color[gid * 3 + 0], dev_color[gid * 3 + 1], dev_color[gid * 3 + 2]};
+    // # reset minimums
+    uint distance_found = 65535;
+    uint distance_minumum = 65535;
+    uint coordinate_minumum[2] = {65535, 65535};
+    uint worker_dev_color[3] = {dev_color[gid * 3 + 0], dev_color[gid * 3 + 1], dev_color[gid * 3 + 2]};
 
-    // uint dev_x_dim = 1;
-    // uint dev_y_dim = 1;
-    // uint dev_mode = 1;
-    // uint dev_avail_count = 1;
+    uint index_neighbor_diffs;
+    uint canvas_index;
 
-    // // # for every coordinate_available position in the boundry, perform the check, keep the best position:
-    // for (int index = 0; index < dev_avail_count; index++)
-    // {
-    //     //reset values
-    //     uint index_neighbor_diffs = 0;
-    //     uint distance_euclidian_aproximation = 0;
-    //     uint available_coordinate_neighbor[2] = {0,0};
-    //     uint list_neighbor_diffs[8] = {0,0,0,0,0,0,0,0};
-    //     uint color_difference[3] = {0,0,0};
-    //     uint color_difference_squared[3] = {0,0,0};
-    //     uint neigborColor[3] = {0,0,0};
-    //     uint color_neighborhood_sum[3] = {0,0,0};
-    //     uint color_neighborhood_average[3] = {0,0,0};
+    // # for every coordinate_available position in the boundry, perform the check, keep the best position:
+    for (int index = 0; index < *dev_avail_count; index++)
+    {
+        //reset values
+        index_neighbor_diffs = 0;
+        uint distance_euclidian_aproximation = 0;
+        uint available_coordinate_neighbor[2] = {0,0};
+        uint list_neighbor_diffs[8] = {0,0,0,0,0,0,0,0};
+        uint color_difference[3] = {0,0,0};
+        uint color_difference_squared[3] = {0,0,0};
+        uint neigborColor[3] = {0,0,0};
+        uint color_neighborhood_sum[3] = {0,0,0};
+        uint color_neighborhood_average[3] = {0,0,0};
 
-    //     uint available_coordinate[2] = {(dev_avail_coords[index * 2]), (dev_avail_coords[index * 2] + 1)};
+        uint available_coordinate[2] = {(dev_avail_coords[index * 2 + 0]), (dev_avail_coords[index * 2 + 1])};
 
-    //     // # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
-    //     for (int neigbor_x = 0; neigbor_x < 3; neigbor_x++)
-    //     {
-    //         for (int neigbor_y = 0; neigbor_y < 3; neigbor_y++)
-    //         {
-    //             // # this pixel is the location being considered;
-    //             // # it is not a neigbor, go to the next one
-    //             if (neigbor_x == 1 && neigbor_y == 1) {continue;}
+        // # Get all 8 neighbors, Loop over the 3x3 grid surrounding the location being considered
+        for (int neigbor_x = 0; neigbor_x < 3; neigbor_x++)
+        {
+            for (int neigbor_y = 0; neigbor_y < 3; neigbor_y++)
+            {
+                // # this pixel is the location being considered;
+                // # it is not a neigbor, go to the next one
+                if (neigbor_x == 1 && neigbor_y == 1) {continue;}
 
-    //             // # calculate the neigbor's coordinates
-    //             available_coordinate_neighbor[0] = (available_coordinate[0] - 1 + neigbor_x);
-    //             available_coordinate_neighbor[1] = (available_coordinate[1] - 1 + neigbor_y);
+                // # calculate the neigbor's coordinates
+                available_coordinate_neighbor[0] = (available_coordinate[0] - 1 + neigbor_x);
+                available_coordinate_neighbor[1] = (available_coordinate[1] - 1 + neigbor_y);
 
-    //             neigborColor[0] = dev_canvas[dev_x_dim * dev_y_dim + 0];
-    //             neigborColor[1] = dev_canvas[dev_x_dim * dev_y_dim + 1];
-    //             neigborColor[2] = dev_canvas[dev_x_dim * dev_y_dim + 2];
+                canvas_index = ((3 * *dev_x_dim * available_coordinate_neighbor[0]) + (3 * available_coordinate_neighbor[1]));
+                
+                neigborColor[0] = dev_canvas[canvas_index + 0];
+                neigborColor[1] = dev_canvas[canvas_index + 1];
+                neigborColor[2] = dev_canvas[canvas_index + 2];
 
-    //             // # neighbor must be in the canvas
-    //             if (available_coordinate_neighbor[0] < 0) {continue;} // x min
-    //             if (available_coordinate_neighbor[1] < 0) {continue;} // y min
-    //             if (available_coordinate_neighbor[0] >= dev_x_dim) {continue;} // x max
-    //             if (available_coordinate_neighbor[1] >= dev_y_dim) {continue;} // y max
+                // # neighbor must be in the canvas
+                if (available_coordinate_neighbor[0] < 0) {continue;} // x min
+                if (available_coordinate_neighbor[1] < 0) {continue;} // y min
+                if (available_coordinate_neighbor[0] >= *dev_x_dim) {continue;} // x max
+                if (available_coordinate_neighbor[1] >= *dev_y_dim) {continue;} // y max
 
-    //             // # neighbor must not be black
-    //             if (!neigborColor[0] && !neigborColor[1] && !neigborColor[2]) {continue;}
+                // # neighbor must not be black
+                if ((neigborColor[0] == 0) && (neigborColor[1] == 0) && (neigborColor[2] == 0)) {continue;}
 
-    //             // add to the average
-    //             color_neighborhood_sum[0] += neigborColor[0];
-    //             color_neighborhood_sum[1] += neigborColor[1];
-    //             color_neighborhood_sum[2] += neigborColor[2];
+                // add to the average
+                color_neighborhood_sum[0] += neigborColor[0];
+                color_neighborhood_sum[1] += neigborColor[1];
+                color_neighborhood_sum[2] += neigborColor[2];
 
-    //             // # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-    //             color_difference[0] = worker_dev_color[0] - neigborColor[0];
-    //             color_difference[1] = worker_dev_color[1] - neigborColor[1];
-    //             color_difference[2] = worker_dev_color[2] - neigborColor[2];
-    //             color_difference_squared[0] = color_difference[0] * color_difference[0];
-    //             color_difference_squared[1] = color_difference[1] * color_difference[1];
-    //             color_difference_squared[2] = color_difference[2] * color_difference[2];
+                // # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
+                color_difference[0] = worker_dev_color[0] - neigborColor[0];
+                color_difference[1] = worker_dev_color[1] - neigborColor[1];
+                color_difference[2] = worker_dev_color[2] - neigborColor[2];
+                color_difference_squared[0] = color_difference[0] * color_difference[0];
+                color_difference_squared[1] = color_difference[1] * color_difference[1];
+                color_difference_squared[2] = color_difference[2] * color_difference[2];
 
-    //             // sum
-    //             distance_euclidian_aproximation = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2];
+                // sum
+                distance_euclidian_aproximation = (color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2]);
 
-    //             //record
-    //             list_neighbor_diffs[index_neighbor_diffs] = distance_euclidian_aproximation;
-    //             index_neighbor_diffs ++;
-    //         }
-    //     }
+                //record
+                list_neighbor_diffs[index_neighbor_diffs] = distance_euclidian_aproximation;
+                index_neighbor_diffs += 1;
+            }
+        }
         
-    //     // # check operational mode and find the resulting distance
-    //     if (dev_mode == 1)
-    //     {
-    //         // # check if the considered pixel has at least one valid neighbor
-    //         if (index_neighbor_diffs)
-    //         {
-    //             // # return the minimum difference of all the neighbors
-    //             distance_found = 65535;
-    //             for (int i = 0; i < index_neighbor_diffs; i++)
-    //             {
-    //                 if(list_neighbor_diffs[i] < distance_found) {distance_found = list_neighbor_diffs[i];}
-    //             }
-    //         }
-    //         // # if it has no valid neighbors, maximise its colorDiff
-    //         else
-    //         {
-    //             distance_found = 65535;
-    //         }
-    //     }
-    //     else if (dev_mode == 2)
-    //     {
-    //         // # check if the considered pixel has at least one valid neighbor
-    //         if (index_neighbor_diffs)
-    //         {
-    //             // # return the avg difference of all the neighbors
-    //             distance_found = 0;
-    //             for (int i = 0; i < index_neighbor_diffs; i++)
-    //             {
-    //                 distance_found += list_neighbor_diffs[i];
-    //             }
-    //             distance_found = distance_found / index_neighbor_diffs;
-    //         }
-    //         // # if it has no valid neighbors, maximise its colorDiff
-    //         else
-    //         {
-    //             distance_found = 65535;
-    //         }
-    //     }
-    //     else if (dev_mode == 3)
-    //     {
-    //         // # check if the considered pixel has at least one valid neighbor
-    //         if (index_neighbor_diffs)
-    //         {
-    //             // finilize neighborhood color calculation
-    //             color_neighborhood_average[0] = color_neighborhood_sum[0]/index_neighbor_diffs;
-    //             color_neighborhood_average[1] = color_neighborhood_sum[1]/index_neighbor_diffs;
-    //             color_neighborhood_average[2] = color_neighborhood_sum[2]/index_neighbor_diffs;
+        // # check operational mode and find the resulting distance
+        if (*dev_mode == 1)
+        {
+            // # check if the considered pixel has at least one valid neighbor
+            if (index_neighbor_diffs)
+            {
+                // # return the minimum difference of all the neighbors
+                distance_found = 65535;
+                for (int i = 0; i < index_neighbor_diffs; i++)
+                {
+                    if(list_neighbor_diffs[i] < distance_found) {distance_found = list_neighbor_diffs[i];}
+                }
+            }
+            // # if it has no valid neighbors, maximise its colorDiff
+            else
+            {
+                distance_found = 65535;
+            }
+        }
+        else if (*dev_mode == 2)
+        {
+            // # check if the considered pixel has at least one valid neighbor
+            if (index_neighbor_diffs)
+            {
+                // # return the avg difference of all the neighbors
+                distance_found = 0;
+                for (int i = 0; i < index_neighbor_diffs; i++)
+                {
+                    distance_found += list_neighbor_diffs[i];
+                }
+                distance_found = distance_found / index_neighbor_diffs;
+            }
+            // # if it has no valid neighbors, maximise its colorDiff
+            else
+            {
+                distance_found = 65535;
+            }
+        }
+        else if (*dev_mode == 3)
+        {
+            // # check if the considered pixel has at least one valid neighbor
+            if (index_neighbor_diffs)
+            {
+                // finilize neighborhood color calculation
+                color_neighborhood_average[0] = color_neighborhood_sum[0]/index_neighbor_diffs;
+                color_neighborhood_average[1] = color_neighborhood_sum[1]/index_neighbor_diffs;
+                color_neighborhood_average[2] = color_neighborhood_sum[2]/index_neighbor_diffs;
 
-    //             // # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
-    //             color_difference[0] = worker_dev_color[0] - color_neighborhood_average[0];
-    //             color_difference[1] = worker_dev_color[1] - color_neighborhood_average[1];
-    //             color_difference[2] = worker_dev_color[2] - color_neighborhood_average[2];
-    //             color_difference_squared[0] = color_difference[0] * color_difference[0];
-    //             color_difference_squared[1] = color_difference[1] * color_difference[1];
-    //             color_difference_squared[2] = color_difference[2] * color_difference[2];
+                // # use the euclidian distance formula over [R,G,B] instead of [X,Y,Z]
+                color_difference[0] = worker_dev_color[0] - color_neighborhood_average[0];
+                color_difference[1] = worker_dev_color[1] - color_neighborhood_average[1];
+                color_difference[2] = worker_dev_color[2] - color_neighborhood_average[2];
+                color_difference_squared[0] = color_difference[0] * color_difference[0];
+                color_difference_squared[1] = color_difference[1] * color_difference[1];
+                color_difference_squared[2] = color_difference[2] * color_difference[2];
 
-    //             distance_found = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2];
-    //         }
-    //         // # if it has no valid neighbors, maximise its colorDiff
-    //         else
-    //         {
-    //             distance_found = 65535;
-    //         }
-    //     }
-    //     // # if it is the best so far save the value and its location
-    //     if (distance_found < distance_minumum)
-    //     {
-    //         distance_minumum = distance_found;
-    //         *coordinate_minumum = *available_coordinate;
-    //     }
-    // }
-    // // record selected color
-    // dev_result[gid * 5 + 0] = worker_dev_color[0];
-    // dev_result[gid * 5 + 1] = worker_dev_color[1];
-    // dev_result[gid * 5 + 2] = worker_dev_color[2];
+                distance_found = color_difference_squared[0] + color_difference_squared[1] + color_difference_squared[2];
+            }
+            // # if it has no valid neighbors, maximise its colorDiff
+            else
+            {
+                distance_found = 65535;
+            }
+        }
+        // # if it is the best so far save the value and its location
+        if (distance_found < distance_minumum)
+        {
+            distance_minumum = distance_found;
+            // *coordinate_minumum = *available_coordinate;
+            coordinate_minumum[0] = available_coordinate[0];
+            coordinate_minumum[1] = available_coordinate[1];
+        }
+    }
+    // record selected color
+    dev_result[gid * 5 + 0] = worker_dev_color[0];
+    dev_result[gid * 5 + 1] = worker_dev_color[1];
+    dev_result[gid * 5 + 2] = worker_dev_color[2];
 
-    // // record best position
-    // dev_result[gid * 5 + 3] = coordinate_minumum[0];
-    // dev_result[gid * 5 + 4] = coordinate_minumum[1];
+    // record best position
+    dev_result[gid * 5 + 3] = coordinate_minumum[0];
+    dev_result[gid * 5 + 4] = coordinate_minumum[1];
 }

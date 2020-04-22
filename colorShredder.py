@@ -1,3 +1,4 @@
+from __future__ import absolute_import, print_function
 # =============================================================================
 # MODULES
 # =============================================================================
@@ -46,7 +47,7 @@ count_available = 0
 count_id = 0
 
 # pyopencl
-os.environ['PYOPENCL_CTX'] = "0"
+# os.environ['PYOPENCL_CTX'] = "1"
 # this line would create a context
 opencl_context = pyopencl.create_some_context()
 # now create a command queue in the context
@@ -131,7 +132,7 @@ def startPainting():
         trackNewBoundyNeighbors_bruteForce(coordinate_start_point)
 
     # finish first pixel
-    printCurrentCanvas(True)
+    # printCurrentCanvas(True)
 
 
 # continue the painting, manages multiple painters or a single painter dynamically
@@ -286,8 +287,7 @@ def printCurrentCanvas(finalize=False):
             time_last_print = time_current
             info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
             print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
-
-    if (finalize):
+    elif (finalize):
         # get time_elapsed time
         time_current = time.time()
         time_elapsed = time_current - time_last_print
@@ -308,7 +308,7 @@ def printCurrentCanvas(finalize=False):
             print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
 
     # if debug flag set, slow down the painting process
-    if (config.DEFAULT_PAINTER['DEBUG_WAIT']):
+    if (config.PARSED_ARGS.debug):
         time.sleep(config.DEFAULT_PAINTER['DEBUG_WAIT_TIME'])
 
 
@@ -657,56 +657,50 @@ def continuePainting2():
         # find the best location for that color
         # coordinate_selected = getBestPositionForColor_bruteForce(color_selected, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
-        # host_result = numpy.zeros(5, dtype=pyopencl.cltypes.uint)
-        # host_color = numpy.zeros(3, dtype=numpy.uint32)
-        # host_avail_coords = numpy.zeros((config.PARSED_ARGS.d[0] * config.PARSED_ARGS.d[1] * 2), dtype=numpy.uint32)
-        # host_canvas = numpy.zeros((config.PARSED_ARGS.d[0] * config.PARSED_ARGS.d[1] * 3), dtype=numpy.uint32)
-        # host_x_dim = numpy.zeros(1, dtype=numpy.uint32)
-        # host_y_dim = numpy.zeros(1, dtype=numpy.uint32)
-        # host_avail_count = numpy.zeros(1, dtype=numpy.uint32)
-        # host_mode = numpy.zeros(1, dtype=numpy.uint32)
+        host_result = numpy.array([0, 0, 0, 0, 0], dtype=numpy.uint32)
+        host_color = numpy.array(color_selected, dtype=numpy.uint32)
+        host_avail_coords = numpy.array(list_availabilty, dtype=numpy.uint32).flatten()
+        host_canvas = canvas_actual_color.flatten(order='C')
+        host_x_dim = numpy.array([canvas_actual_color.shape[0]], dtype=numpy.uint32)
+        host_y_dim = numpy.array([canvas_actual_color.shape[1]], dtype=numpy.uint32)
+        host_avail_count = numpy.array([count_available], dtype=numpy.uint32)
+        host_mode = numpy.array([config.PARSED_ARGS.q], dtype=numpy.uint32)
 
-        # host_result = numpy.array([0, 0, 0, 0, 0], dtype=numpy.uint32)
-        # host_color = numpy.array(color_selected, dtype=numpy.uint32)
-        # host_avail_coords = numpy.array(list_availabilty, dtype=numpy.uint32).flatten()
-        # host_canvas = canvas_actual_color.flatten()
-        # host_x_dim = numpy.array([canvas_actual_color.shape[0]], dtype=numpy.uint32)
-        # host_y_dim = numpy.array([canvas_actual_color.shape[1]], dtype=numpy.uint32)
-        # host_avail_count = numpy.array([count_available], dtype=numpy.uint32)
-        # host_mode = numpy.array([config.PARSED_ARGS.q], dtype=numpy.uint32)
+        # print(str(host_result))
+        # print(str(host_color))
+        # print(str(host_avail_coords))
+        # print(str(host_canvas[0:15]))
+        # print(str(host_canvas[15:30]))
+        # print(str(host_canvas[30:45]))
+        # print(str(host_canvas[45:60]))
+        # print(str(host_canvas[60:75]))
+        # print(str(host_x_dim))
+        # print(str(host_y_dim))
+        # print(str(host_avail_count))
+        # print(str(host_mode))
 
-        # dev_result = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.WRITE_ONLY, host_result.nbytes)
-        # dev_color = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_color)
-        # dev_avail_coords = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_coords)
-        # dev_canvas = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_canvas)
-        # dev_x_dim = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_x_dim)
-        # dev_y_dim = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_y_dim)
-        # dev_avail_count = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_count)
-        # dev_mode = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_mode)
-
-        a_np = numpy.random.rand(5000).astype(numpy.float32)
-        b_np = numpy.random.rand(5000).astype(numpy.float32)
-        mf = pyopencl.mem_flags
-        a_g = pyopencl.Buffer(opencl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=a_np)
-        b_g = pyopencl.Buffer(opencl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=b_np)
-        res_g = pyopencl.Buffer(opencl_context, mf.WRITE_ONLY, a_np.nbytes)
+        dev_result = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.WRITE_ONLY, host_result.nbytes)
+        dev_color = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_color)
+        dev_avail_coords = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_coords)
+        dev_canvas = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_canvas)
+        dev_x_dim = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_x_dim)
+        dev_y_dim = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_y_dim)
+        dev_avail_count = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_count)
+        dev_mode = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_mode)
 
         # launch the kernel
-        opencl_kernel.getBestPositionForColor_openCL(opencl_queue, a_np.shape, None, a_g, b_g, res_g) # , dev_result, dev_color, dev_avail_coords, dev_canvas) # , dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
-        # opencl_event.wait()
-
-        res_np = numpy.empty_like(a_np)
+        opencl_event = opencl_kernel.getBestPositionForColor_openCL(opencl_queue, (1,), None, dev_result, dev_color, dev_avail_coords, dev_canvas, dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
+        opencl_event.wait()
 
         # copy the output from the context to the Python process
-        pyopencl.enqueue_copy(opencl_queue, res_np, res_g)
+        pyopencl.enqueue_copy(opencl_queue, host_result, dev_result)
 
         # attempt to paint the color at the corresponding location
-        # paintToCanvas(host_result[0:3], host_result[3:5])
+        # print("")
+        # print(str(host_result[0:3]))
+        # print(str(host_result[3:5]))
+        paintToCanvas(host_result[0:3], host_result[3:5])
 
-        # Check on CPU with Numpy:
-        print(res_np - (a_np + b_np))
-        print(numpy.linalg.norm(res_np - (a_np + b_np)))
-        assert numpy.allclose(res_np, a_np + b_np)
 
 
 # =============================================================================

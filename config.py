@@ -64,6 +64,7 @@ CONFIG_PARSER.add_argument('-s', metavar='crd', nargs=2, help='coordinates of th
 CONFIG_PARSER.add_argument('-f', metavar='flnm', help='name of output image', default=DEFAULT_PAINTER['PAINTING_NAME'], type=str)
 CONFIG_PARSER.add_argument('-r', metavar='rte', help='info print and update painting at this pixel rate', default=DEFAULT_PAINTER['PRINT_RATE'], type=int)
 CONFIG_PARSER.add_argument('-q', metavar='strt', choices=[1, 2, 3], help='strategy for choosing best location: min:0, avg:1, or quick:2', default=DEFAULT_MODE['GET_BEST_POSITION_MODE'], type=int)
+CONFIG_PARSER.add_argument('-debug', action='store_true', help='generate colors using hls color space', default=DEFAULT_PAINTER['DEBUG_WAIT'])
 PARSED_ARGS = CONFIG_PARSER.parse_args()
 
 print("")
@@ -76,7 +77,8 @@ if (PARSED_ARGS.t and PARSED_ARGS.j):
 if (PARSED_ARGS.t and not (PARSED_ARGS.q == 3)):
     print("When using the rTree, shredder can only utilize the quick strategy")
     quit()
-PARSED_ARGS.r = max(PARSED_ARGS.r, DEFAULT_PAINTER['MAX_PAINTERS'])
+if not (PARSED_ARGS.r):
+    PARSED_ARGS.r = max(PARSED_ARGS.r, DEFAULT_PAINTER['MAX_PAINTERS'])
 
 
 # rTree properties
