@@ -684,16 +684,16 @@ def continuePainting2():
         # dev_avail_count = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_count)
         # dev_mode = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_mode)
 
-        a_np = numpy.random.rand(50000).astype(numpy.float32)
-        b_np = numpy.random.rand(50000).astype(numpy.float32)
+        a_np = numpy.random.rand(5000).astype(numpy.float32)
+        b_np = numpy.random.rand(5000).astype(numpy.float32)
         mf = pyopencl.mem_flags
         a_g = pyopencl.Buffer(opencl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=a_np)
         b_g = pyopencl.Buffer(opencl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=b_np)
         res_g = pyopencl.Buffer(opencl_context, mf.WRITE_ONLY, a_np.nbytes)
 
         # launch the kernel
-        opencl_event = opencl_kernel.getBestPositionForColor_openCL(opencl_queue, a_np.shape, None, a_g, b_g, res_g) # , dev_result, dev_color, dev_avail_coords, dev_canvas) # , dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
-        opencl_event.wait()
+        opencl_kernel.getBestPositionForColor_openCL(opencl_queue, a_np.shape, None, a_g, b_g, res_g) # , dev_result, dev_color, dev_avail_coords, dev_canvas) # , dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
+        # opencl_event.wait()
 
         res_np = numpy.empty_like(a_np)
 
@@ -705,8 +705,8 @@ def continuePainting2():
 
         # Check on CPU with Numpy:
         print(res_np - (a_np + b_np))
-        print(np.linalg.norm(res_np - (a_np + b_np)))
-        assert np.allclose(res_np, a_np + b_np)
+        print(numpy.linalg.norm(res_np - (a_np + b_np)))
+        assert numpy.allclose(res_np, a_np + b_np)
 
 
 # =============================================================================
