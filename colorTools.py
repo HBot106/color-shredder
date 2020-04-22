@@ -46,18 +46,24 @@ def colorWorker(chan1_val):
     # Setup
     color_sub_list = numpy.zeros([VALUES_PER_CHANNEL**2, 3], numpy.uint16)
     index_in_color_sub_list = 0
+    output_color = [0,0,0]
+    channel_shift = 1
 
     # loop over every value of chan3_val and chan2_val producing each color that can have the given chan1_val
     for chan2_val in range(VALUES_PER_CHANNEL):
         for chan3_val in range(VALUES_PER_CHANNEL):
             # insert the color in its place
 
+            output_color[(0 + channel_shift) % 3] = chan1_val / VALUES_PER_CHANNEL
+            output_color[(1 + channel_shift) % 3] = chan2_val / VALUES_PER_CHANNEL
+            output_color[(2 + channel_shift) % 3] = chan3_val / VALUES_PER_CHANNEL
+
             if (HLS):
-                rgb_color = colorsys.hls_to_rgb((chan1_val/VALUES_PER_CHANNEL), (chan2_val/VALUES_PER_CHANNEL), (chan3_val/VALUES_PER_CHANNEL))
+                rgb_color = colorsys.hls_to_rgb((output_color[0]), (output_color[1]), (output_color[2]))
             elif (HSV):
-                rgb_color = colorsys.hsv_to_rgb((chan1_val/VALUES_PER_CHANNEL), (chan2_val/VALUES_PER_CHANNEL), (chan3_val/VALUES_PER_CHANNEL))
+                rgb_color = colorsys.hsv_to_rgb((output_color[0]), (output_color[1]), (output_color[2]))
             else:
-                rgb_color = ((chan1_val/VALUES_PER_CHANNEL), (chan2_val/VALUES_PER_CHANNEL), (chan3_val/VALUES_PER_CHANNEL))
+                rgb_color = ((output_color[0]), (output_color[1]), (output_color[2]))
 
             color_sub_list[index_in_color_sub_list] = numpy.array([(rgb_color[0] * 255), (rgb_color[1] * 255), (rgb_color[2] * 255)], numpy.uint16)
             index_in_color_sub_list += 1
