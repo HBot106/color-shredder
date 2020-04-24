@@ -32,7 +32,7 @@ DEFAULT_PAINTER = dict(
     MIN_MULTI_WORKLOAD = 400,
     MULTIPROCESSING = False,
     MAX_PAINTERS_CPU = (os.cpu_count()),
-    MAX_PAINTERS_GPU = 128,
+    MAX_PAINTERS_GPU = 1024,
     PRINT_RATE = 100,
     DEBUG_WAIT = False,
     DEBUG_WAIT_TIME = 1,
@@ -42,8 +42,8 @@ DEFAULT_PAINTER = dict(
 DEFAULT_CANVAS = dict(
     CANVAS_WIDTH = 64,
     CANVAS_HEIGHT = 64,
-    START_X = 0,
-    START_Y = 0
+    START_X = 32,
+    START_Y = 32
 )
 
 print("")

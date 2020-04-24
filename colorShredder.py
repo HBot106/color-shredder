@@ -1,4 +1,3 @@
-from __future__ import absolute_import, print_function
 # =============================================================================
 # MODULES
 # =============================================================================
@@ -104,8 +103,8 @@ def main():
             continuePainting()
 
     # while more un-colored boundry locations exist and there are more collision colors to be placed, continue painting
-    print("Finishing with collided colors...")
     while(count_available and (index_collided_colors < len(list_collided_colors))):
+        print("Finishing with collided colors...")
         finishPainting()
 
     # Final Print Authoring
@@ -874,6 +873,8 @@ def parallelWork_openCL():
     coordinate_to_paint = [0,0]
 
     number_of_workers = min(((count_available//config.DEFAULT_PAINTER['LOCATIONS_PER_PAINTER']), config.DEFAULT_PAINTER['MAX_PAINTERS_GPU'], (NUMBER_OF_COLORS - index_all_colors)))
+    # if(number_of_workers > 64): number_of_workers = (((number_of_workers // 64)) * 64)
+
     host_colors = numpy.zeros((number_of_workers * 3), dtype=numpy.uint32)
 
     for worker_index in range(number_of_workers):
