@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "/home/gyatso/.local/share/virtualenvs/color-shredder-eTUApcEM/bin/python",
+    "python.pythonPath": "/usr/bin/python3.6",
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true
 }
