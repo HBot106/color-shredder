@@ -36,9 +36,12 @@ def generateColors():
         list_of_all_colors[index_in_color_list * NUMBER_SUB_COLORS: (index_in_color_list + 1) * NUMBER_SUB_COLORS] = color_sub_list.result()
         index_in_color_list += 1
         print("Generating colors... {:3.2f}".format(100*index_in_color_list/(2**COLOR_BIT_DEPTH)) + '%' + " complete.", end='\r')
+    print("")
 
     if (USE_SHUFFLE < 0):
+        print("Shuffling colors... ")
         numpy.random.shuffle(list_of_all_colors)
+
     else:
         USE_SHUFFLE = 1
 

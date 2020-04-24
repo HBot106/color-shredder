@@ -3,10 +3,12 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
     int gid = get_global_id(0);
 
     // # reset minimums
-    uint distance_found = 65535;
-    uint distance_minumum = 65535;
+    ulong distance_found = 0;
+    ulong distance_minumum = 4294967295;
+
     uint coordinate_minumum[2] = {65535, 65535};
-    uint worker_dev_color[3] = {dev_color[gid * 3 + 0], dev_color[gid * 3 + 1], dev_color[gid * 3 + 2]};
+
+    uint worker_dev_color[3] = {dev_color[(gid * 3) + 0], dev_color[(gid * 3) + 1], dev_color[(gid * 3) + 2]};
 
     uint index_neighbor_diffs;
     uint canvas_index;
@@ -16,11 +18,12 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
     {
         //reset values
         index_neighbor_diffs = 0;
-        uint distance_euclidian_aproximation = 0;
+        ulong distance_euclidian_aproximation = 0;
+        ulong list_neighbor_diffs[8] = {0,0,0,0,0,0,0,0};
+        ulong color_difference_squared[3] = {0,0,0};
+
         uint available_coordinate_neighbor[2] = {0,0};
-        uint list_neighbor_diffs[8] = {0,0,0,0,0,0,0,0};
         uint color_difference[3] = {0,0,0};
-        uint color_difference_squared[3] = {0,0,0};
         uint neigborColor[3] = {0,0,0};
         uint color_neighborhood_sum[3] = {0,0,0};
         uint color_neighborhood_average[3] = {0,0,0};
@@ -47,8 +50,6 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
                 neigborColor[2] = dev_canvas[canvas_index + 2];
 
                 // # neighbor must be in the canvas
-                if (available_coordinate_neighbor[0] < 0) {continue;} // x min
-                if (available_coordinate_neighbor[1] < 0) {continue;} // y min
                 if (available_coordinate_neighbor[0] >= *dev_x_dim) {continue;} // x max
                 if (available_coordinate_neighbor[1] >= *dev_y_dim) {continue;} // y max
 
@@ -84,7 +85,7 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
             if (index_neighbor_diffs)
             {
                 // # return the minimum difference of all the neighbors
-                distance_found = 65535;
+                distance_found = 4294967295;
                 for (int i = 0; i < index_neighbor_diffs; i++)
                 {
                     if(list_neighbor_diffs[i] < distance_found) {distance_found = list_neighbor_diffs[i];}
@@ -93,7 +94,7 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
             // # if it has no valid neighbors, maximise its colorDiff
             else
             {
-                distance_found = 65535;
+                distance_found = 4294967295;
             }
         }
         else if (*dev_mode == 2)
@@ -107,12 +108,12 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
                 {
                     distance_found += list_neighbor_diffs[i];
                 }
-                distance_found = distance_found / index_neighbor_diffs;
+                distance_found = (distance_found / index_neighbor_diffs);
             }
             // # if it has no valid neighbors, maximise its colorDiff
             else
             {
-                distance_found = 65535;
+                distance_found = 4294967295;
             }
         }
         else if (*dev_mode == 3)
@@ -138,14 +139,13 @@ __kernel void getBestPositionForColor_openCL(__global uint *dev_result, __global
             // # if it has no valid neighbors, maximise its colorDiff
             else
             {
-                distance_found = 65535;
+                distance_found = 4294967295;
             }
         }
         // # if it is the best so far save the value and its location
         if (distance_found < distance_minumum)
         {
             distance_minumum = distance_found;
-            // *coordinate_minumum = *available_coordinate;
             coordinate_minumum[0] = available_coordinate[0];
             coordinate_minumum[1] = available_coordinate[1];
         }

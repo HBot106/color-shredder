@@ -21,6 +21,7 @@ import config
 # =============================================================================
 # MACROS
 # =============================================================================
+NUMBER_OF_COLORS = ((2**config.PARSED_ARGS.c)**3)
 COLOR_BLACK = numpy.array([0, 0, 0], numpy.uint32)
 COORDINATE_INVALID = numpy.array([-1, -1])
 
@@ -31,7 +32,7 @@ COORDINATE_INVALID = numpy.array([-1, -1])
 # process_pool executor
 mutliprocessing_painter_manager = concurrent.futures.ProcessPoolExecutor()
 # list of all colors to be placed
-list_all_colors = numpy.zeros([((2**config.PARSED_ARGS.c)**3), 3], numpy.uint32)
+list_all_colors = numpy.zeros([NUMBER_OF_COLORS, 3], numpy.uint32)
 index_all_colors = 0
 # empty list of all colors to be placed and an index for tracking position in the list
 list_collided_colors = []
@@ -40,6 +41,8 @@ index_collided_colors = 0
 png_painter = png.Writer(config.PARSED_ARGS.d[0], config.PARSED_ARGS.d[1], greyscale=False)
 # used for ongoing speed calculation
 time_last_print = time.time()
+# number of workers
+number_of_workers = 1
 # counters
 count_collisions = 0
 count_colors_placed = 0
@@ -50,6 +53,7 @@ count_id = 0
 # PYOPENCL
 # =============================================================================
 os.environ['PYOPENCL_CTX'] = "0"
+os.environ['PYOPENCL_COMPILER_OUTPUT'] = "1"
 # this line would create a context
 opencl_context = pyopencl.create_some_context()
 # now create a command queue in the context
@@ -100,6 +104,7 @@ def main():
             continuePainting()
 
     # while more un-colored boundry locations exist and there are more collision colors to be placed, continue painting
+    print("Finishing with collided colors...")
     while(count_available and (index_collided_colors < len(list_collided_colors))):
         finishPainting()
 
@@ -140,6 +145,7 @@ def continuePainting():
     # Global Access
     global index_all_colors
     global mutliprocessing_painter_manager
+    global number_of_workers
 
     # if more than MIN_MULTI_WORKLOAD locations are available, allow multiprocessing, also check for config flag
     bool_use_parallelization = ((count_available > config.DEFAULT_PAINTER['MIN_MULTI_WORKLOAD']) and config.PARSED_ARGS.multi)
@@ -152,6 +158,7 @@ def continuePainting():
     # otherwise, use only the main process
     # This is because the overhead of multithreading makes singlethreading better for small problems
     else:
+        number_of_workers = 1
         if (config.PARSED_ARGS.rtree):
             sequentialWork_rTree()
 
@@ -168,16 +175,21 @@ def continuePainting():
 # finish the painting using numba brute force on the list of all colors that were not placed due to collisions
 def finishPainting():
     global index_collided_colors
+    global count_collisions
+    global number_of_workers
+
+    number_of_workers = 1
 
     # get the color to be placed
     color_selected = list_collided_colors[index_collided_colors]
     index_collided_colors += 1
 
     # find the best location for that color
-    coordinate_selected = getBestPositionForColor_numba(color_selected, numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
+    coordinate_selected = getBestPositionForColor_numba(numpy.array(color_selected), numpy.array(list_availabilty), canvas_actual_color, config.PARSED_ARGS.q)[1]
 
     # attempt to paint the color at the corresponding location
     paintToCanvas(color_selected, coordinate_selected)
+    count_collisions -= 1
 
 
 # attempts to paint the requested color at the requested location; checks for collisions
@@ -254,8 +266,8 @@ def printCurrentCanvas(finalize=False):
 
             # Info Print
             time_last_print = time_current
-            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
-            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
+            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
+            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
     elif (finalize):
         # get time_elapsed time
         time_current = time.time()
@@ -273,8 +285,8 @@ def printCurrentCanvas(finalize=False):
 
             # Info Print
             time_last_print = time_current
-            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec."
-            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate), end='\n')
+            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
+            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
 
     # if debug flag set, slow down the painting process
     if (config.PARSED_ARGS.debug):
@@ -350,13 +362,15 @@ def parallelWork_python():
     # Global Access
     global index_all_colors
     global mutliprocessing_painter_manager
+    global number_of_workers
 
     # cap the number of workers so that there are at least LOCATIONS_PER_PAINTER free locations per worker
     # this keeps the number of collisions down
-    # limit the total possible workers to MAX_PAINTERS (twice the CPU count) to not add unnecessary overhead
+    # limit the total possible workers to MAX_PAINTERS_GPU (twice the CPU count) to not add unnecessary overhead
     # loop over each one
     list_painter_work_queue = []
-    for _ in range(min(((count_available//config.DEFAULT_PAINTER['LOCATIONS_PER_PAINTER']), config.DEFAULT_PAINTER['MAX_PAINTERS']))):
+    number_of_workers = (min(((count_available//config.DEFAULT_PAINTER['LOCATIONS_PER_PAINTER']), config.DEFAULT_PAINTER['MAX_PAINTERS_CPU'], (NUMBER_OF_COLORS - index_all_colors))))
+    for _ in range(number_of_workers):
 
         # check that more colors are available
         if (index_all_colors < len(list_all_colors)):
@@ -804,9 +818,8 @@ def sequentialWork_openCL():
     # Global Access
     global index_all_colors
 
-    # get the color to be placed
-    color_selected = list_all_colors[index_all_colors]
-    index_all_colors += 1
+    color_to_paint = [0,0,0]
+    coordinate_to_paint = [0,0]
 
     # get the color to be placed
     color_selected = list_all_colors[index_all_colors]
@@ -839,21 +852,41 @@ def sequentialWork_openCL():
     pyopencl.enqueue_copy(opencl_queue, host_result, dev_result)
 
     # attempt to paint the color at the corresponding location
-    paintToCanvas(host_result[0:3], host_result[3:5])
+    # // record selected color
+    color_to_paint[0] = host_result[0]
+    color_to_paint[1] = host_result[1]
+    color_to_paint[2] = host_result[2]
+
+    # // record best position
+    coordinate_to_paint[0] = host_result[3]
+    coordinate_to_paint[1] = host_result[4]
+
+    # attempt to paint the color at the corresponding location
+    paintToCanvas(color_to_paint, coordinate_to_paint)
 
 
 def parallelWork_openCL():
     # Global Access
     global index_all_colors
+    global number_of_workers
 
-    # get the color to be placed
-    color_selected = list_all_colors[index_all_colors]
-    index_all_colors += 1
+    color_to_paint = [0,0,0]
+    coordinate_to_paint = [0,0]
+
+    number_of_workers = min(((count_available//config.DEFAULT_PAINTER['LOCATIONS_PER_PAINTER']), config.DEFAULT_PAINTER['MAX_PAINTERS_GPU'], (NUMBER_OF_COLORS - index_all_colors)))
+    host_colors = numpy.zeros((number_of_workers * 3), dtype=numpy.uint32)
+
+    for worker_index in range(number_of_workers):
+        # get the color to be placed
+        color_selected = list_all_colors[index_all_colors]
+        index_all_colors += 1
+
+        host_colors[(worker_index * 3) + 0] = color_selected[0]
+        host_colors[(worker_index * 3) + 1] = color_selected[1]
+        host_colors[(worker_index * 3) + 2] = color_selected[2]
 
     # find the best location for that color
-
-    host_result = numpy.array([0, 0, 0, 0, 0], dtype=numpy.uint32)
-    host_color = numpy.array(color_selected, dtype=numpy.uint32)
+    host_result = numpy.zeros((number_of_workers * 5), dtype=numpy.uint32)
     host_avail_coords = numpy.array(list_availabilty, dtype=numpy.uint32).flatten()
     host_canvas = canvas_actual_color.flatten(order='C')
     host_x_dim = numpy.array([canvas_actual_color.shape[0]], dtype=numpy.uint32)
@@ -862,7 +895,7 @@ def parallelWork_openCL():
     host_mode = numpy.array([config.PARSED_ARGS.q], dtype=numpy.uint32)
 
     dev_result = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.WRITE_ONLY, host_result.nbytes)
-    dev_color = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_color)
+    dev_colors = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_colors)
     dev_avail_coords = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_avail_coords)
     dev_canvas = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_canvas)
     dev_x_dim = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_x_dim)
@@ -871,14 +904,25 @@ def parallelWork_openCL():
     dev_mode = pyopencl.Buffer(opencl_context, pyopencl.mem_flags.READ_ONLY | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=host_mode)
 
     # launch the kernel
-    opencl_event = opencl_kernel.getBestPositionForColor_openCL(opencl_queue, (1,), None, dev_result, dev_color, dev_avail_coords, dev_canvas, dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
+    opencl_event = opencl_kernel.getBestPositionForColor_openCL(opencl_queue, (number_of_workers,), None, dev_result, dev_colors, dev_avail_coords, dev_canvas, dev_x_dim, dev_y_dim, dev_avail_count, dev_mode)
     opencl_event.wait()
 
     # copy the output from the context to the Python process
     pyopencl.enqueue_copy(opencl_queue, host_result, dev_result)
 
-    # attempt to paint the color at the corresponding location
-    paintToCanvas(host_result[0:3], host_result[3:5])
+    for worker_index in range(number_of_workers):
+
+        # // record selected color
+        color_to_paint[0] = host_result[worker_index * 5 + 0]
+        color_to_paint[1] = host_result[worker_index * 5 + 1]
+        color_to_paint[2] = host_result[worker_index * 5 + 2]
+
+        # // record best position
+        coordinate_to_paint[0] = host_result[worker_index * 5 + 3]
+        coordinate_to_paint[1] = host_result[worker_index * 5 + 4]
+
+        # attempt to paint the color at the corresponding location
+        paintToCanvas(color_to_paint, coordinate_to_paint)
 
 
 # =============================================================================
