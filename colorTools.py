@@ -39,7 +39,7 @@ def generateColors():
     print("")
 
     if (USE_SHUFFLE < 0):
-        print("Shuffling colors... ")
+        print("Shuffling colors...  (This may take a long time for higher color bit-depths)")
         numpy.random.shuffle(list_of_all_colors)
 
     else:
