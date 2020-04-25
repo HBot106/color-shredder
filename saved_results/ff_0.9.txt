@@ -1,0 +1,2 @@
+Namespace(c=8, d=[512, 512], debug=False, f='saved_results/ff_0.9', hls=False, hsv=False, multi=False, numba=False, opencl=False, q=3, r=100, rtree=True, s=[256, 256], x=-1)
+CompletedTime: 13.70 minutes!

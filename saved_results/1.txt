@@ -1,1 +1,2 @@
-Namespace(c=6, d=[1920, 1080], debug=False, f='saved_results/1', hls=False, hsv=False, multi=False, numba=False, opencl=False, q=3, r=100, rtree=True, s=[960, 540], x=-1)
+Namespace(c=8, d=[512, 512], debug=False, f='saved_results/1', hls=False, hsv=False, multi=True, numba=False, opencl=True, q=2, r=100, rtree=False, s=[256, 256], x=-1)
+CompletedTime: 21.70 minutes!
