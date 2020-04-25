@@ -89,6 +89,10 @@ def main():
     global list_all_colors
     global mutliprocessing_painter_manager
 
+    txt_file = open(str(config.PARSED_ARGS.f + '.txt'), 'w') 
+    print(config.PARSED_ARGS, file = txt_file) 
+    txt_file.close() 
+
     # Setup
     subprocess.call(['rm', '-r', 'painting'])
     subprocess.call(['mkdir', 'painting'])
