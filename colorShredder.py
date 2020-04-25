@@ -127,6 +127,9 @@ def main():
     time_elapsed = time.time() - time_started
     printCurrentCanvas(True)
     print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
+    txt_file = open(str(config.PARSED_ARGS.f + '.txt'), 'a') 
+    print(("CompletedTime: " + "{:3.2f}".format(time_elapsed / 60) + " minutes!"), file = txt_file) 
+    txt_file.close() 
 
     # teardown the process pool
     mutliprocessing_painter_manager.shutdown()
@@ -706,8 +709,7 @@ def unTrackCoordinate_rTree(nearest_neighbor):
     # flag the location as no longer being available
     canvas_availability[coordinate_nearest_neighbor[0], coordinate_nearest_neighbor[1]] = False
     count_available -= 1
-    count_id -= 1
-
+    
 
 # =============================================================================
 # NUMBA
