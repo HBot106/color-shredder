@@ -13,6 +13,7 @@ import os
 import sys
 import concurrent.futures
 import time
+import csv
 
 import colorTools
 import config
@@ -54,7 +55,7 @@ count_placed_at_last_print = 0
 # =============================================================================
 # PYOPENCL
 # =============================================================================
-# os.environ['PYOPENCL_CTX'] = "0"
+os.environ['PYOPENCL_CTX'] = "0"
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = "1"
 # this line would create a context
 opencl_context = pyopencl.create_some_context()
@@ -91,6 +92,10 @@ def main():
     # Setup
     subprocess.call(['rm', '-r', 'painting'])
     subprocess.call(['mkdir', 'painting'])
+
+    with open(str(config.PARSED_ARGS.f + '.csv'), 'w', newline='') as csvfile:
+        stats_writer = csv.writer(csvfile, delimiter=',')
+        stats_writer.writerow(['PixelsColored', 'PixelsAvailable', 'PercentComplete', 'TotalCollisions', 'Rate', 'WorkerCount', 'RatePerWorker'])
 
 
     list_all_colors = colorTools.generateColors()
@@ -251,69 +256,73 @@ def printCurrentCanvas(finalize=False):
 
     # Global Access
     global time_last_print
-    global png_painter
-    global count_print
-    global count_placed_at_last_print
+
+    fps = 6
 
     # get time_elapsed time
     time_current = time.time()
     time_elapsed = time_current - time_last_print
-
-    colors_placed_since_last_print = (count_colors_placed - count_placed_at_last_print)
     
-    painting_rate = colors_placed_since_last_print/time_elapsed
-
     if(time_elapsed >= 1.0):
-
-        # write the png file
-        painting_output_name = (config.PARSED_ARGS.f + '.png')
-        gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
-        count_print += 1
-
-        painting_output_file = open(painting_output_name, 'wb')
-        gif_output_file = open(gif_output_name, 'wb')
-
-        png_painter.write(painting_output_file, getRawOutput())
-        png_painter.write(gif_output_file, getRawOutput())
+        # write common files
+        writeFiles(time_current, time_elapsed)
         
-        painting_output_file.close()
-        gif_output_file.close()
 
-        # Info Print
-        time_last_print = time_current
-        count_placed_at_last_print = count_colors_placed
-
-        info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
-        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
-    
     elif (finalize):
-       
-        painting_output_name = (config.PARSED_ARGS.f + '.png')
-        gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
-        count_print += 1
-
-        painting_output_file = open(painting_output_name, 'wb')
-        gif_output_file = open(gif_output_name, 'wb')
-
-        png_painter.write(painting_output_file, getRawOutput())
-        png_painter.write(gif_output_file, getRawOutput())
-        
-        painting_output_file.close()
-        gif_output_file.close()
-
-        # Info Print
-        time_last_print = time_current
-        count_placed_at_last_print = count_colors_placed
-
-        info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
-        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
-    
-        subprocess.call(['ffmpeg', '-y', '-r', '12', '-i', 'painting/%06d.png', 'painting.gif'])
+        # write common files #fps number of times so that the gif ends with a full second of the completed image
+        for _ in range(fps):
+            writeFiles(time_current, time_elapsed)
+        print("")
+        # make GIF
+        subprocess.call(['ffmpeg', '-nostats', '-hide_banner', '-loglevel', 'panic', '-y', '-r', str(fps), '-i', 'painting/%06d.png', str(config.PARSED_ARGS.f + '.gif')])
 
     # if debug flag set, slow down the painting process
     if (config.PARSED_ARGS.debug):
         time.sleep(config.DEFAULT_PAINTER['DEBUG_WAIT_TIME'])
 
+
+def writeFiles(time_current, time_elapsed):
+    # Global Access
+    global time_last_print
+    global count_placed_at_last_print
+    global png_painter
+    global count_print
+
+    # name the output files
+    painting_output_name = (config.PARSED_ARGS.f + '.png')
+    gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
+    
+    # open output files
+    painting_output_file = open(painting_output_name, 'wb')
+    gif_output_file = open(gif_output_name, 'wb')
+
+    # write PNGs
+    png_painter.write(painting_output_file, getRawOutput())
+    png_painter.write(gif_output_file, getRawOutput())
+    
+    # close PNGs
+    painting_output_file.close()
+    gif_output_file.close()
+
+    # Get Info
+    percent_complete = int(count_colors_placed * 100 / config.PARSED_ARGS.d[0] // config.PARSED_ARGS.d[1])
+    colors_placed_since_last_print = (count_colors_placed - count_placed_at_last_print)
+    painting_rate = int(colors_placed_since_last_print//time_elapsed)
+    rate_per_worker = int(painting_rate//number_of_workers)
+    info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {}. Total Collisions: {}. Rate: {} pixels/sec. Worker Count: {} Rate per Worker: {}"
+    
+    # print to console
+    print('\33[2K', end='\r')
+    print(info_print.format(count_colors_placed, count_available, percent_complete, count_collisions, painting_rate, number_of_workers, rate_per_worker), end='\r')
+    count_print += 1
+
+    # add to CSV
+    with open(str((config.PARSED_ARGS.f + '.csv')), 'a', newline='') as csvfile:
+        stats_writer = csv.writer(csvfile, delimiter=',')
+        stats_writer.writerow([count_colors_placed, count_available, percent_complete, count_collisions, painting_rate, number_of_workers, rate_per_worker])
+
+    time_last_print = time_current
+    count_placed_at_last_print = count_colors_placed
 
 def getColorBoundingBox(color):
     return(color[0], color[1], color[2], color[0], color[1], color[2])

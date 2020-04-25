@@ -42,8 +42,8 @@ DEFAULT_PAINTER = dict(
 DEFAULT_CANVAS = dict(
     CANVAS_WIDTH = 64,
     CANVAS_HEIGHT = 64,
-    START_X = 32,
-    START_Y = 32
+    START_X = 0,
+    START_Y = 0
 )
 
 print("")
