@@ -8,6 +8,7 @@ import rtree
 import pyopencl
 from pyopencl import cltypes
 
+import subprocess
 import os
 import sys
 import concurrent.futures
@@ -47,11 +48,13 @@ count_collisions = 0
 count_colors_placed = 0
 count_available = 0
 count_id = 0
+count_print = 0
+count_placed_at_last_print = 0
 
 # =============================================================================
 # PYOPENCL
 # =============================================================================
-os.environ['PYOPENCL_CTX'] = "0"
+# os.environ['PYOPENCL_CTX'] = "0"
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = "1"
 # this line would create a context
 opencl_context = pyopencl.create_some_context()
@@ -86,6 +89,10 @@ def main():
     global mutliprocessing_painter_manager
 
     # Setup
+    subprocess.call(['rm', '-r', 'painting'])
+    subprocess.call(['mkdir', 'painting'])
+
+
     list_all_colors = colorTools.generateColors()
     print("Painting Canvas...")
     time_started = time.time()
@@ -114,7 +121,6 @@ def main():
 
     # teardown the process pool
     mutliprocessing_painter_manager.shutdown()
-
 
 # start the painting, by placing the first target color
 def startPainting():
@@ -246,46 +252,63 @@ def printCurrentCanvas(finalize=False):
     # Global Access
     global time_last_print
     global png_painter
+    global count_print
+    global count_placed_at_last_print
 
-    if not (count_colors_placed % config.PARSED_ARGS.r):
+    # get time_elapsed time
+    time_current = time.time()
+    time_elapsed = time_current - time_last_print
 
-        # get time_elapsed time
-        time_current = time.time()
-        time_elapsed = time_current - time_last_print
+    colors_placed_since_last_print = (count_colors_placed - count_placed_at_last_print)
+    
+    painting_rate = colors_placed_since_last_print/time_elapsed
 
-        # exclude duplicate printings
-        if (time_elapsed):
-            painting_rate = config.PARSED_ARGS.r/time_elapsed
+    if(time_elapsed >= 1.0):
 
-            # write the png file
-            painting_output_name = (config.PARSED_ARGS.f + '.png')
-            painting_output_file = open(painting_output_name, 'wb')
-            png_painter.write(painting_output_file, getRawOutput())
-            painting_output_file.close()
+        # write the png file
+        painting_output_name = (config.PARSED_ARGS.f + '.png')
+        gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
+        count_print += 1
 
-            # Info Print
-            time_last_print = time_current
-            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
-            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
+        painting_output_file = open(painting_output_name, 'wb')
+        gif_output_file = open(gif_output_name, 'wb')
+
+        png_painter.write(painting_output_file, getRawOutput())
+        png_painter.write(gif_output_file, getRawOutput())
+        
+        painting_output_file.close()
+        gif_output_file.close()
+
+        # Info Print
+        time_last_print = time_current
+        count_placed_at_last_print = count_colors_placed
+
+        info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
+        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
+    
     elif (finalize):
-        # get time_elapsed time
-        time_current = time.time()
-        time_elapsed = time_current - time_last_print
+       
+        painting_output_name = (config.PARSED_ARGS.f + '.png')
+        gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
+        count_print += 1
 
-        # exclude duplicate printings
-        if (time_elapsed):
-            painting_rate = config.PARSED_ARGS.r/time_elapsed
+        painting_output_file = open(painting_output_name, 'wb')
+        gif_output_file = open(gif_output_name, 'wb')
 
-            # write the png file
-            painting_output_name = (config.PARSED_ARGS.f + '.png')
-            painting_output_file = open(painting_output_name, 'wb')
-            png_painter.write(painting_output_file, getRawOutput())
-            painting_output_file.close()
+        png_painter.write(painting_output_file, getRawOutput())
+        png_painter.write(gif_output_file, getRawOutput())
+        
+        painting_output_file.close()
+        gif_output_file.close()
 
-            # Info Print
-            time_last_print = time_current
-            info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
-            print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
+        # Info Print
+        time_last_print = time_current
+        count_placed_at_last_print = count_colors_placed
+
+        info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {:3.2f}. Total Collisions: {}. Rate: {:3.2f} pixels/sec. Worker Count: {}"
+        print(info_print.format(count_colors_placed, count_available, (count_colors_placed * 100 / config.PARSED_ARGS.d[0] / config.PARSED_ARGS.d[1]), count_collisions, painting_rate, number_of_workers), end='\n')
+    
+        subprocess.call(['ffmpeg', '-y', '-r', '12', '-i', 'painting/%06d.png', 'painting.gif'])
 
     # if debug flag set, slow down the painting process
     if (config.PARSED_ARGS.debug):
