@@ -1,6 +1,7 @@
 *.gif
 painting*
 painting/*
+temp.png
 config.code-workspace
 .vscode/*
 __pycache__/*

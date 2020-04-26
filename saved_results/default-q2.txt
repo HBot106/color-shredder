@@ -1,0 +1,4 @@
+Namespace(c=6, d=[64, 64], debug=False, f='saved_results/default-q2', hls=False, hsv=False, multi=False, numba=False, opencl=False, q=2, r=100, rtree=False, s=[0, 0], x=-1)
+CompletedTime:
+2.85
+minutes

@@ -1,0 +1,4 @@
+Namespace(c=8, d=[200, 200], debug=False, f='saved_results/d200-q2-c8-numba', hls=False, hsv=False, multi=False, numba=True, opencl=False, q=2, r=100, rtree=False, s=[100, 100], x=-1)
+CompletedTime:
+4.0614
+minutes

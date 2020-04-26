@@ -1,0 +1,4 @@
+Namespace(c=8, d=[300, 300], debug=False, f='saved_results/d300-q2-c8-opencl-multi', hls=False, hsv=False, multi=True, numba=False, opencl=True, q=2, r=100, rtree=False, s=[150, 150], x=-1)
+CompletedTime:
+4.0478
+minutes

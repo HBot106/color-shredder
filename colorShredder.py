@@ -126,9 +126,11 @@ def main():
     # Final Print Authoring
     time_elapsed = time.time() - time_started
     printCurrentCanvas(True)
-    print("Painting Completed in " + "{:3.2f}".format(time_elapsed / 60) + " minutes!")
+    print("Painting Completed in " + "{:3.4f}".format(time_elapsed / 60) + " minutes!")
     txt_file = open(str(config.PARSED_ARGS.f + '.txt'), 'a') 
-    print(("CompletedTime: " + "{:3.2f}".format(time_elapsed / 60) + " minutes!"), file = txt_file) 
+    print(("CompletedTime:"), file = txt_file)
+    print(("{:3.4f}".format(time_elapsed / 60)), file = txt_file) 
+    print(("minutes"), file = txt_file)
     txt_file.close() 
 
     # teardown the process pool
@@ -298,25 +300,29 @@ def writeFiles(time_current, time_elapsed):
     # name the output files
     painting_output_name = (config.PARSED_ARGS.f + '.png')
     gif_output_name = ("painting/" + "{:06d}".format(count_print) + '.png')
+    debug_outputname = ("temp.png")
     
     # open output files
     painting_output_file = open(painting_output_name, 'wb')
     gif_output_file = open(gif_output_name, 'wb')
+    debug_output_file = open(debug_outputname, 'wb')
 
     # write PNGs
     png_painter.write(painting_output_file, getRawOutput())
     png_painter.write(gif_output_file, getRawOutput())
+    png_painter.write(debug_output_file, getRawOutput())
     
     # close PNGs
     painting_output_file.close()
     gif_output_file.close()
+    debug_output_file.close()
 
     # Get Info
     percent_complete = int(count_colors_placed * 100 / config.PARSED_ARGS.d[0] // config.PARSED_ARGS.d[1])
     colors_placed_since_last_print = (count_colors_placed - count_placed_at_last_print)
-    painting_rate = int(colors_placed_since_last_print//time_elapsed)
-    rate_per_worker = int(painting_rate//number_of_workers)
-    info_print = "Pixels Colored: {}. Pixels Available: {}. Percent Complete: {}. Total Collisions: {}. Rate: {} pixels/sec. Worker Count: {} Rate per Worker: {}"
+    painting_rate = (colors_placed_since_last_print/time_elapsed)
+    rate_per_worker = (painting_rate/number_of_workers)
+    info_print = "PixelsColored: {}. PixelsAvailable: {}. PercentComplete: {}. TotalCollisions: {}. Rate: {:3.2f}. WorkerCount: {}. RatePerWorker: {:3.2f}."
     
     # print to console
     print('\33[2K', end='\r')
@@ -326,7 +332,7 @@ def writeFiles(time_current, time_elapsed):
     # add to CSV
     with open(str((config.PARSED_ARGS.f + '.csv')), 'a', newline='') as csvfile:
         stats_writer = csv.writer(csvfile, delimiter=',')
-        stats_writer.writerow([count_colors_placed, count_available, percent_complete, count_collisions, painting_rate, number_of_workers, rate_per_worker])
+        stats_writer.writerow([count_colors_placed, count_available, percent_complete, count_collisions, float("{:3.2f}".format(painting_rate)), number_of_workers, float("{:3.2f}".format(rate_per_worker))])
 
     time_last_print = time_current
     count_placed_at_last_print = count_colors_placed
@@ -911,7 +917,6 @@ def parallelWork_openCL():
     coordinate_to_paint = [0,0]
 
     number_of_workers = min(((count_available//config.DEFAULT_PAINTER['LOCATIONS_PER_PAINTER']), config.DEFAULT_PAINTER['MAX_PAINTERS_GPU'], (NUMBER_OF_COLORS - index_all_colors)))
-    # if(number_of_workers > 64): number_of_workers = (((number_of_workers // 64)) * 64)
 
     host_colors = numpy.zeros((number_of_workers * 3), dtype=numpy.uint32)
 

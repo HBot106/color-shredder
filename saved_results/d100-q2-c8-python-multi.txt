@@ -1,0 +1,4 @@
+Namespace(c=8, d=[100, 100], debug=False, f='saved_results/d100-q2-c8-python-multi', hls=False, hsv=False, multi=True, numba=False, opencl=False, q=2, r=100, rtree=False, s=[50, 50], x=-1)
+CompletedTime:
+3.2731
+minutes

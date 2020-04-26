@@ -1,0 +1,1 @@
+Namespace(c=8, d=[128, 128], debug=False, f='saved_results/d128-q2-c8-python-multi', hls=False, hsv=False, multi=True, numba=False, opencl=False, q=2, r=100, rtree=False, s=[0, 0], x=-1)
