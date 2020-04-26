@@ -1,0 +1,4 @@
+Namespace(c=8, d=[1000, 1000], debug=False, f='saved_results/d1000-q3-c8-rtree', hls=False, hsv=False, multi=False, numba=False, opencl=False, q=3, r=100, rtree=True, s=[500, 500], x=-1)
+CompletedTime:
+52.8036
+minutes
